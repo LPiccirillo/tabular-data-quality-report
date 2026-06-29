@@ -11,6 +11,11 @@ lang: en             # HTML language
 date: today          # Generation date
 date-format: long    # Long date format
 
+# ======== DOCUMENT PARAMETERS ========
+params:
+  data_path: "BIG5_data/BIG5/data.csv"  # Dataset to analyse. Relative paths are resolved from the project root; absolute paths are used as-is. Override with: quarto render Quarto_Script.qmd -P data_path:<path> (or via render.R).
+  data_delim: "\t"                       # Column separator of the dataset (default: tab, i.e. TSV).
+
 # ======== HTML OUTPUT SETTINGS ========
 format:
   html:
@@ -164,8 +169,10 @@ options(repos = c(CRAN = "https://cran.stat.unipd.it/"), #specify the cran mirro
 Sys.setenv(CURL_IPRESOLVE = 1) #value 1 corresponds to curl_ipresolve_v4 (ipv4 only).
 
 getwd() #display the current working directory.
-# setwd("C:/Users/Bianconiglio/Desktop/Quarto_Template") #set the working directory.
-# getwd() #verify that the working directory has been updated.
+#NOTE: do not hard-code an absolute working directory here. Paths are resolved relative to the
+#R project root via here::here(), which keeps the workflow portable across machines and operating
+#systems. To analyse a different dataset, set the `data_path` parameter in the YAML header (or pass
+#it on render, e.g. quarto render Quarto_Script.qmd -P data_path:<path>) instead of using setwd().
 
 # #restart the rstudio session.
 # if (requireNamespace("rstudioapi", quietly = TRUE)) {rstudioapi::restartSession()}
@@ -826,17 +833,24 @@ The `source` variable was encoded as follows:
 ### **Data import and dataset dimensions**
 
 ```{r}
-#remove all objects from the environment except those that are explicitly needed
-rm(list = setdiff(ls(), c("data_0")))
+#resolve the dataset path and separator from the document parameters (see the YAML header)
+#BEFORE clearing the environment, so they survive the rm() below.
+#relative paths are interpreted from the R project root via here::here(), which ensures
+#portability across different computers and operating systems; absolute paths (starting with
+#"/" or a Windows drive letter such as "C:/") are used as-is.
+data_path  <- params$data_path
+data_delim <- params$data_delim
+if (!grepl("^(/|[A-Za-z]:)", data_path)) {
+  data_path <- here::here(data_path)
+}
 
-data_0 <- read_delim(here::here("BIG5_data/BIG5", "data.csv"), 
-                    #use here::here() to build a project-relative path instead of an absolute path
-                    #this ensures portability across different computers and operating systems
-                    #the path starts from the root of the R project (RStudio Project or Git directory)
-                     delim = "\t", 
-                    #specify the column separator; in this case the file is a TSV (Tab-Separated Values)
-                    #where columns are separated by tab characters
-                     escape_double = FALSE, 
+#remove all objects from the environment except those that are explicitly needed
+rm(list = setdiff(ls(), c("data_0", "data_path", "data_delim")))
+
+data_0 <- read_delim(data_path,
+                     delim = data_delim,
+                    #column separator taken from the `data_delim` parameter (default: tab, i.e. a TSV file)
+                     escape_double = FALSE,
                     #define how double quotes are handled in the input file
                      trim_ws = TRUE)
                     #automatically remove leading and trailing whitespace from all values
