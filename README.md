@@ -57,39 +57,86 @@ Each stage progressively improves data consistency and prepares the dataset for 
 
 ---
 
-## Reproducibility
+## Rendering the report
 
-To run the workflow with a different dataset, the following modifications are required:
+The dataset to analyse is controlled by the `data_path` document parameter (declared in the
+YAML header of `Quarto_Script.qmd`), so **no manual editing of the `.qmd` is required** to run the
+workflow on a new file. Paths are resolved with `here::here()` relative to the project root, which
+keeps the workflow portable across machines and operating systems.
 
-- Update **Chunk 8**, which handles dataset import
-- Update the **Data Dictionary** to reflect variable names, types, and descriptions of the new dataset
-- Update the **title, subtitle, author(s), and abstract** in the Quarto (`.qmd`) file to reflect the new project context
-- Set the correct **working directory** by replacing the commented line:
+There are three ways to render:
 
-  ```r
-  # setwd("C:/Users/Bianconiglio/Desktop/Quarto_Template") # set the working directory
-  ```
-  
-  with the appropriate local path for the user’s system
-- Replace the author signature section:
+1. **Helper script (recommended).** `render.R` auto-detects a single data file
+   (`.csv`/`.tsv`/`.txt`/`.dat`) placed in the project folder and renders the report. Just drop
+   your dataset in the folder and run:
 
-  ```html
-  <em>**Thank you for your attention from**</em> <br> <em>**Luigi Piccirillo**</em>
-  ```
+   ```bash
+   Rscript render.R
+   ```
 
-  with the correct name(s) of the author(s)
+   The column separator is guessed from the file extension (comma for `.csv`, tab otherwise).
+   You can also pass an explicit path to override the auto-detection:
+
+   ```bash
+   Rscript render.R data/my_survey.csv report.html ,
+   ```
+
+2. **Quarto CLI.** Pass the parameter directly:
+
+   ```bash
+   quarto render Quarto_Script.qmd -P data_path:data/my_survey.csv -P data_delim:,
+   ```
+
+3. **RStudio.** Edit the `params:` block at the top of `Quarto_Script.qmd` and click *Render*
+   (or press `Ctrl + Shift + K`).
+
+> The example Big Five dataset is **not** stored in the repository. Download it from
+> http://openpsychometrics.org/_rawdata/BIG5.zip and unzip it into `BIG5_data/` so that the file
+> is available at `BIG5_data/BIG5/data.csv` (the default `data_path`).
+
+### Published report
+
+On every push to `main`, a GitHub Actions workflow (`.github/workflows/publish.yml`) downloads the
+example dataset, renders the report, and publishes it to **GitHub Pages**. To enable it, go to
+*Settings then Pages* and set the source to *GitHub Actions*.
+
+### Adapting the report to a new dataset
+
+Beyond the input file, you will typically also want to:
+
+- Update the **Data Dictionary** to reflect the variable names, types, and descriptions of the new dataset
+- Update the **title, subtitle, author(s), and abstract** in the YAML header of the `.qmd`
+- Replace the **author signature** section near the end of the document with the correct name(s)
 
 No further modifications are required in the script structure.
 
 ---
 
-## Software Requirements
+## Requirements
 
-This project was developed using:
+The workflow requires:
 
-- R (see official R license and citation)
-- RStudio (Posit IDE)
-- Quarto (for reproducible reporting)
+- **R** (see the official R license and citation)
+- **Quarto** (for reproducible reporting), and optionally **RStudio / Posit IDE**
+
+### R packages
+
+The script installs any missing packages automatically on first run. To install them up front:
+
+```r
+install.packages(c(
+  "furrr",       # parallel iteration (with the parallel base package)
+  "readr",       # import delimited files
+  "tidyverse",   # data manipulation, analysis, and visualization
+  "janitor",     # clean and standardize column names
+  "psych",       # descriptive statistics
+  "rcompanion",  # association measures (Cramer's V)
+  "knitr",       # dynamic reporting
+  "kableExtra",  # HTML tables
+  "here",        # project-relative paths
+  "quarto"       # render the document from R (used by render.R)
+))
+```
 
 All software is used under their respective licenses. See the Citations section of the report for full bibliographic details.
 
