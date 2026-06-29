@@ -1,0 +1,43 @@
+########################################################
+# GitIgnore for R + Quarto Project
+# Keeps repository clean from temporary and local files
+########################################################
+
+
+############################
+# R temporary files
+############################
+
+# R session history
+*.Rhistory
+
+# Saved R workspace (rarely needed, not reproducible)
+*.RData
+
+
+############################
+# RStudio / R project files
+############################
+
+# RStudio project user-specific settings
+.Rproj.user/
+.Rproj.user
+
+# Alternative RStudio project cache/settings folder
+.Rproj.user/
+
+
+############################
+# Quarto / Posit tools
+############################
+
+# Posit AI / assistant related local files (if generated)
+.positai
+
+
+############################
+# Operating system files
+############################
+
+# Windows thumbnail cache
+Thumbs.db
