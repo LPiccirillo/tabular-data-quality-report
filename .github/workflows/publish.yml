@@ -1,0 +1,80 @@
+name: Render & publish report
+
+# Renders the Quarto report and publishes it to GitHub Pages.
+# The example Big Five dataset is downloaded at build time (it is not stored in the repo).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, cancelling in-progress runs.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Download example dataset (Big Five)
+        run: |
+          mkdir -p BIG5_data
+          curl -fsSL -o big5.zip http://openpsychometrics.org/_rawdata/BIG5.zip
+          unzip -q big5.zip -d BIG5_data
+          ls -R BIG5_data
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - name: Install R package dependencies
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          packages: |
+            any::furrr
+            any::readr
+            any::tidyverse
+            any::janitor
+            any::psych
+            any::rcompanion
+            any::knitr
+            any::kableExtra
+            any::here
+            any::rmarkdown
+
+      - name: Set up Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+
+      - name: Render report
+        run: quarto render Quarto_Script.qmd
+
+      - name: Assemble site
+        run: |
+          mkdir -p _site
+          cp Quarto_Script.html _site/index.html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
