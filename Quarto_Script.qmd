@@ -1,0 +1,1507 @@
+---
+# ======== DOCUMENT METADATA ========
+title: "<strong>Quarto Template for the Automated Diagnostic Analysis of Tabular Datasets</strong>" # Document title
+subtitle: "<strong><em>Report for Exploratory Data Analysis, Data Quality Assessment, and Descriptive Summary</em></strong>" # Document subtitle
+author:
+  - "Full Name<br><span style='margin-left:1em'>Student ID (optional)<br><span style='margin-left:1em'>Email Address (optional)" # Author 1
+  - "Full Name<br><span style='margin-left:1em'>Student ID (optional)<br><span style='margin-left:1em'>Email Address (optional)" # Author 2
+abstract: |
+          To be added
+lang: en             # HTML language
+date: today          # Generation date
+date-format: long    # Long date format
+
+# ======== HTML OUTPUT SETTINGS ========
+format:
+  html:
+    polyfill: false           # Disable external JavaScript polyfills
+    embed-resources: true     # Embed all CSS/JS resources directly into the HTML file
+    standalone: true          # Generate a self-contained HTML document
+    toc: true                 # Enable the Table of Contents
+    number-sections: true     # Automatically number section headings
+    toc-depth: 5              # Include headings up to level 5 in the TOC
+    code-tools: true          # Add the "Show Source" button for code chunks
+    code-fold: true           # Make code chunks collapsible
+
+# ======== CHUNK EXECUTION OPTIONS ========
+execute:
+  echo: true                  # Display R code in the HTML output
+  warning: false              # Hide warning messages during execution
+  message: false              # Hide package startup and informational messages
+
+# ======== CUSTOM CSS ========
+include-in-header:
+  - text: |
+      <style>
+
+      /* ==============================================
+         CUSTOM TABLE OF CONTENTS
+         ============================================== */
+
+      #toc, #contents {
+          position: relative;      /* Remove floating or side positioning */
+          display: block;          /* Display the TOC as a standard block */
+          margin: 20px auto 40px auto; /* Top and bottom margins */
+          padding: 10px;           /* Inner padding */
+          background-color: #f0f8ff;  /* Light background color */
+          border-radius: 5px;      /* Rounded corners */
+          width: 90%;              /* TOC width */
+          box-sizing: border-box;  /* Include padding and border in total width */
+      }
+
+      .toc {
+          padding: 10px;
+          background-color: #f0f8ff; /* Background color for the internal TOC */
+          border-radius: 5px;
+      }
+
+      .toc a {
+          text-decoration: none;  /* Remove link underline */
+          color: #007bff;         /* Blue links */
+      }
+
+      .toc a:hover {
+          text-decoration: underline; /* Underline links on hover */
+      }
+
+
+      /* ==============================================
+         DOCUMENT BODY
+         ============================================== */
+
+      body {
+          font-family: Arial, sans-serif; /* Main readable font */
+          line-height: 1.6;               /* Line spacing */
+          margin: 0;                      /* Remove outer margins */
+          padding: 0;                     /* Remove outer padding */
+          margin-top: 50px;               /* Space between TOC and document content */
+      }
+
+      a {
+          text-decoration: none;          /* Remove link underline */
+          color: #007bff;                 /* Blue links */
+      }
+
+      a:hover {
+          text-decoration: underline;     /* Underline links on hover */
+      }
+
+
+      /* ==============================================
+         ESSENTIAL FIX FOR R OUTPUT
+         Preserve alignment of lm(), summary(), tables, etc.
+         ============================================== */
+
+      pre code,
+      code.sourceCode,
+      pre,
+      .cell-output,
+      .cell-output pre,
+      .cell-output code {
+          white-space: pre !important;     /* Preserve all spaces exactly as in the R console */
+          word-break: keep-all !important; /* Prevent automatic word breaking */
+          overflow-x: auto;                /* Enable horizontal scrolling when needed */
+          font-family: monospace;          /* Monospaced font (as in RStudio) */
+          display: block;                  /* Each code block occupies a full line */
+      }
+
+      /* ==============================================
+         INLINE CODE
+         Allow line wrapping inside text
+         ============================================== */
+
+      code:not(.sourceCode):not(pre code) {
+          white-space: normal !important;   /* Normal spacing */
+          word-wrap: break-word !important; /* Wrap long lines when necessary */
+          display: inline;                  /* Keep inline within text */
+      }
+
+      </style>
+---
+
+# **Table of contents**
+
+```{r, message=FALSE, warning=FALSE}
+file_lines <- readLines("Quarto_Script.qmd") #read the Quarto (.qmd) file as a vector of lines
+
+#extract only heading lines (levels 1 to 5)
+#pattern: lines starting with # to ##### followed by **bold text**
+heading_lines <- grep("^#{1,5}\\s*\\*\\*", file_lines, value = TRUE)
+
+#extract heading level (number of # characters at the start)
+heading_level <- nchar(sub("^(#{1,5}).*", "\\1", heading_lines))
+
+#clean heading text by removing:
+#- leading markdown hashes (#)
+#- surrounding bold markers (** **)
+heading_text <- gsub("^#{1,5}\\s*\\*\\*|\\*\\*$", "", heading_lines)
+
+#build hierarchical index using indentation; each level adds 2 spaces of indentation
+index <- paste0(strrep("  ", heading_level - 1), #indentation based on level
+                "- ", #bullet point
+                heading_text) #clean title text
+
+cat(index, sep = "\n") #print the final structured index
+```
+
+# **Packages & Setup**
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
+#to render the quarto document, press ctrl + shift + k.
+#this code chunk initializes a clean r session to improve code reproducibility.
+
+#This chunk initializes the R environment and sets global options to ensure full reproducibility of the analysis. It defines the CRAN mirror, configures download methods, and enforces IPv4 connectivity to avoid network issues. It also includes utilities to clean the workspace, detach loaded packages, remove existing objects, and reset the random seed, ensuring that the session starts from a completely clean state
+
+#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
+#BEFORE STARTING
+#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
+
+#set global r session options for (i) the cran repository used to install packages and (ii) the method used to download files from the internet.
+options(repos = c(CRAN = "https://cran.stat.unipd.it/"), #specify the cran mirror used to download and install packages. using a fixed mirror improves reproducibility, download speed, and reliability.
+  download.file.method = "libcurl") #use libcurl as the download method. it provides full https support, automatic redirects, and better stability than legacy methods.
+
+#force libcurl to prefer ipv4 over ipv6; this can prevent connectivity issues on networks with unstable ipv6 routing or tls handshake failures.
+Sys.setenv(CURL_IPRESOLVE = 1) #value 1 corresponds to curl_ipresolve_v4 (ipv4 only).
+
+getwd() #display the current working directory.
+# setwd("C:/Users/Bianconiglio/Desktop/Quarto_Template") #set the working directory.
+# getwd() #verify that the working directory has been updated.
+
+# #restart the rstudio session.
+# if (requireNamespace("rstudioapi", quietly = TRUE)) {rstudioapi::restartSession()}
+# #this clears all loaded objects and packages while preserving the current script.
+
+
+#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
+#CLEAN R ENVIRONMENT
+#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
+
+#unload all attached packages except the core r system packages.
+#search() returns all objects attached to the current r search path.
+invisible(lapply(search(), function(x) {
+  #check whether the current object is a package
+  #(its name starts with "package:")
+  #and ensure that it is not one of the essential base r packages.
+  if (grepl("package:", x) &&
+      !grepl("package:base", x) && #keep the base package.
+      !grepl("package:stats", x) && #keep statistical functions.
+      !grepl("package:utils", x) && #keep utility functions.
+      !grepl("package:graphics", x) && #keep base graphics.
+      !grepl("package:grDevices", x) && #keep graphics devices.
+      !grepl("package:datasets", x) && #keep example datasets.
+      !grepl("package:methods", x)) { #keep the methods package.
+    #detach all non-system packages from the search path.
+    #setting unload = true also unloads the package from memory.
+    detach(x, character.only = TRUE, unload = TRUE)}}))
+
+rm(list = ls(all.names = TRUE))
+#remove all objects from the current workspace.
+#ls(all.names = true) lists all objects, including hidden ones,
+#and rm() deletes them.
+#this ensures that the analysis starts from a clean environment.
+
+rm(".Random.seed", envir = .GlobalEnv) #remove any previously defined random seed.
+
+# set.seed(42) #set a reproducible random seed.
+# #print the current random seed if it exists.
+# if (exists(".Random.seed")) {
+#   cat("\ncurrent random seed:\n")
+#   print(.Random.seed)
+# } else {
+#   cat("\nno random seed has been generated in the current session.\n")}
+
+gc() #trigger garbage collection to release unused memory.
+
+graphics.off() #close all open graphics devices to avoid conflicts with new plots.
+
+closeAllConnections() #close all open connections to prevent resource conflicts.
+
+#clear the r console (equivalent to pressing ctrl + l in rstudio).
+cat("\014") #"\014" is the form-feed character interpreted by rstudio as "clear console".
+```
+
+```{r setup-time, include=FALSE, echo=FALSE}
+#This chunk creates an isolated environment to store the execution start time of the script. It is used to measure total runtime and support reproducibility tracking by recording when the analysis begins.
+
+#create an isolated environment, that is, an empty environment, useful for storing temporary objects without cluttering the global environment.
+.time_env <- new.env(parent = emptyenv())
+
+#store the execution start timestamp. Sys.time() returns the current date and time.
+.time_env$start <- Sys.time()
+```
+
+This chunk configures parallel computing capabilities using multiple CPU cores. It installs and loads the required packages and defines a multisession plan that uses all available cores minus one. This improves computational efficiency for operations that support parallel execution.
+
+```{r, message=FALSE, warning=FALSE}
+#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
+#PARALLEL PROCESSING
+#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
+
+if (!requireNamespace("parallel", quietly = TRUE)){install.packages("parallel")}
+library(parallel) #functions for native parallel computing in R.
+# packageDescription("parallel")
+
+if (!requireNamespace("furrr", quietly = TRUE)){install.packages("furrr")}
+library(furrr) #extends purrr to execute functions in parallel using future.
+# packageDescription("furrr")
+
+plan(multisession, workers = parallel::detectCores() - 1)
+#set the parallel execution plan for future/furrr.
+#'multisession' creates multiple R sessions running in parallel
+#(on Windows, each session runs as a separate process).
+#'workers = parallel::detectCores() - 1' uses all available CPU cores except one,
+#preventing the CPU from being fully saturated and leaving resources available for the operating system.
+```
+
+This chunk installs and loads all necessary packages for data analysis, visualization, statistical computation, and reporting. It includes tools for data manipulation (`tidyverse`), descriptive statistics (`psych`), association measures (`rcompanion`), and HTML reporting (`knitr`, `kableExtra`), ensuring that all required dependencies are available for the workflow.
+
+```{r, message=FALSE, warning=FALSE}
+# Import data
+if (!requireNamespace("readr", quietly = TRUE)) {install.packages("readr")}
+library(readr) #import CSV files.
+# packageDescription("readr")
+
+# Data manipulation and management
+if (!requireNamespace("tidyverse", quietly = TRUE)) {install.packages("tidyverse")}
+#tidyverse is a meta-package for data manipulation, analysis, and visualization, including:
+#- ggplot2 for data visualization using graphics.
+#- dplyr for data manipulation, with functions such as filter(), select(), summarise(), and mutate().
+#- tidyr for reshaping data between wide and long formats.
+#- readr for importing CSV and text files.
+#- purrr for functional programming and iteration using functions such as map().
+#- tibble for an improved and modern implementation of data frames.
+#- stringr for string manipulation.
+#- forcats for handling and reordering categorical variables (factors).
+#- lubridate for working with dates and times.
+library(tidyverse) #data manipulation, analysis, and visualization.
+# packageDescription("tidyverse")
+
+# Data cleaning and descriptive statistics
+if (!requireNamespace("janitor", quietly = TRUE)){install.packages("janitor")}
+library(janitor) #clean and standardize column names.
+# packageDescription("janitor")
+
+if (!requireNamespace("psych", quietly = TRUE)){install.packages("psych")}
+library(psych) #compute descriptive statistics using describe().
+# packageDescription("psych")
+
+if (!requireNamespace("rcompanion", quietly = TRUE)){install.packages("rcompanion")}
+library(rcompanion) #compute Cramér's V.
+# packageDescription("rcompanion")
+
+# HTML output and reporting
+if (!requireNamespace("knitr", quietly = TRUE)){install.packages("knitr")}
+library(knitr) #dynamic reporting with R Markdown and Quarto.
+# packageDescription("knitr")
+
+if (!requireNamespace("kableExtra", quietly = TRUE)){install.packages("kableExtra")}
+library(kableExtra) #create and customize HTML tables.
+# packageDescription("kableExtra")
+```
+
+This chunk prints a detailed report of the computing environment, including operating system, hardware specifications, memory usage, R version, installed tools, and session configuration. It also records random number generator settings and file system information to ensure full reproducibility of the analysis across different machines and sessions.
+
+```{r, message=FALSE, warning=FALSE}
+cat(" =========================================\n",
+    " REPRODUCIBILITY INFORMATION\n",
+    "=========================================\n\n",
+    
+    #this section collects essential information about the hardware environment and operating system.
+    "=== SYSTEM AND HARDWARE ===\n",
+    
+    "Operating system:\n",
+    #operating system name (windows, linux, macos)
+    "    OS name:                          ", Sys.info()["sysname"], "\n",
+    #specific os version
+    "    OS version:                       ", Sys.info()["release"], "\n",
+    #machine architecture
+    "    Architecture:                     ", Sys.info()["machine"], "\n",
+    #number of logical cpu cores available for parallel computation
+    "    CPU cores (logical):              ", parallel::detectCores(), "\n",
+    #information about r compilation platform
+    "    R compilation platform:           ", R.version$platform, "\n\n",
+    
+    #blas and lapack are fundamental mathematical libraries for linear algebra and numerical computing in r;
+    #here the version of external linked libraries is printed
+    "BLAS/LAPACK:\n",
+    paste0("    ",names(extSoftVersion()), ": ", extSoftVersion(),collapse = "\n "), "\n\n",
+
+    #this section describes available memory and current r session usage
+    "Memory:\n",
+    
+    #estimated total system ram (in gb)
+    "    Total RAM (GB): ", 
+    if (.Platform$OS.type == "windows") {
+     #on windows use wmic command
+      as.numeric(gsub("[^0-9]", "", 
+                      system("wmic computersystem get TotalPhysicalMemory",intern = TRUE)[2])) / (1024^3)
+    } else if (Sys.info()["sysname"] == "Linux") {
+     #on linux read from /proc/meminfo
+      as.numeric(system("grep MemTotal /proc/meminfo | awk '{print $2}'",intern = TRUE)) / (1024^2)
+    } else if (Sys.info()["sysname"] == "Darwin") {
+     #on macos use sysctl
+      as.numeric(system("sysctl -n hw.memsize",intern = TRUE)) / (1024^3)
+    } else {NA},"\n",
+
+    #r garbage collector automatically manages memory by freeing unused objects; these values show current usage and internal memory limits during the session
+    "    Garbage collector (R memory management):\n",
+    paste(sprintf("        %-7s | used: %8s | trigger: %8s | max used: %8s",
+                  rownames(gc()),
+                  format(gc()[, "used"], big.mark = ","),
+                  format(gc()[, "gc trigger"], big.mark = ","),
+                  format(gc()[, "max used"], big.mark = ",")),
+          collapse = "\n "),"\n\n",
+    
+    #information about r version and related tools
+    "=== R ENVIRONMENT ===\n",
+    
+    "R:\n",
+    #full r version string
+    "    Version:                         ", R.version.string, "\n",
+    #r installation directory
+    "    R installation directory:        ", R.home(), "\n\n",
+
+    "RStudio:\n",
+    #check whether rstudio is available and display its version
+    "    Version:                         ",
+    if (requireNamespace("rstudioapi", quietly = TRUE) &&
+        rstudioapi::isAvailable()) {
+      as.character(rstudioapi::getVersion())
+    } else {
+      "Not available, running outside RStudio"
+    },
+    "\n\n",
+
+    "Quarto:\n",
+    #quarto version, if installed on the system
+    "    Version:                         ",
+    tryCatch(system("quarto --version", intern = TRUE),
+             error = function(e) "Not available"),
+    "\n\n",
+
+    #information about locale, numeric format, and date/time settings
+    "=== LOCALIZATION AND TIME ===\n",
+    
+    "Localization:\n",
+    "    Collate:   ", Sys.getlocale("LC_COLLATE"), "\n",
+    "    Ctype:     ", Sys.getlocale("LC_CTYPE"), "\n",
+    "    Monetary:  ", Sys.getlocale("LC_MONETARY"), "\n",
+    "    Numeric:   ", Sys.getlocale("LC_NUMERIC"), "\n",
+    "    Time:      ", Sys.getlocale("LC_TIME"), "\n\n",
+
+    "Date and time:\n",
+    #session timestamp
+    "    Timestamp: ", format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z"), "\n",
+    #system timezone
+    "    Timezone:  ", Sys.timezone(), "\n\n",
+
+    #essential for reproducibility of statistical analyses, since changing the seed or rng method changes results
+    "=== RANDOM NUMBER GENERATOR ===\n",
+    
+    "    RNG kind:      ", paste(RNGkind(), collapse = ", "), "\n",
+    #check whether a seed exists in the current session
+    "    Seed present:  ", if (exists(".Random.seed")) "YES" else "NO", "\n",
+    #print current seed if available
+    "    Current seed:  ", if (exists(".Random.seed")) {paste(.Random.seed, collapse = " ")
+      } else {"No seed present"}, "\n\n",
+
+    #useful for project traceability (git + quarto files)
+    "=== VERSIONING AND CODE ===\n",
+    
+    "Git:\n",
+    #git commit hash (if available)
+    "    Commit: ",tryCatch(system("git rev-parse HEAD", intern = TRUE),
+                            error = function(e) "Not initialized or repository not found"),"\n",
+    #current git branch
+    "    Branch: ",tryCatch(system("git branch --show-current", intern = TRUE),
+                            error = function(e) "Not initialized or repository not found"),"\n\n",
+    
+    "Quarto code files (.qmd):\n",
+    #number of quarto files in directory and subdirectories
+    "    Number of files: ", length(list.files(pattern = "\\.qmd$", recursive = TRUE)), "\n",
+    #md5 hashes of quarto files for integrity/version control
+    #md5 (message digest algorithm 5) is a hash function that generates a unique fingerprint of a file.
+    #even a small change produces a completely different hash.
+    #it is used to verify file integrity and detect modifications.
+    tryCatch(paste(sprintf("    %s | %s",
+                           names(tools::md5sum(sort(list.files(pattern = "\\.qmd$", recursive = TRUE)))),
+                           tools::md5sum(sort(list.files(pattern = "\\.qmd$", recursive = TRUE)))),
+                   collapse = "\n "), error = function(e) "    Not available"), "\n\n",
+    
+    "RMarkdown files (.Rmd):\n",
+    #number of rmarkdown files
+    "    Number of files: ", length(list.files(pattern = "\\.Rmd$", recursive = TRUE)), "\n",
+    #md5 hashes of rmarkdown files
+    tryCatch(paste(sprintf("    %s | %s",
+                           names(tools::md5sum(sort(list.files(pattern = "\\.Rmd$", recursive = TRUE)))),
+                           tools::md5sum(sort(list.files(pattern = "\\.Rmd$", recursive = TRUE)))),
+                   collapse = "\n "), error = function(e) "    Not available"), "\n\n",
+    
+    "R scripts (.R):\n",
+    #number of r files
+    "    Number of files: ", length(list.files(pattern = "\\.R$", recursive = TRUE)), "\n",
+    #md5 hashes of r files
+    tryCatch(paste(sprintf("    %s | %s",
+                           names(tools::md5sum(sort(list.files(pattern = "\\.R$", recursive = TRUE)))),
+                           tools::md5sum(sort(list.files(pattern = "\\.R$", recursive = TRUE)))),
+                   collapse = "\n "), error = function(e) "    Not available"), "\n\n",
+    
+    "Jupyter notebooks (.ipynb):\n",
+    #number of jupyter files
+    "    Number of files: ", length(list.files(pattern = "\\.(ipynb)$", recursive = TRUE)), "\n",
+    #md5 hashes
+    tryCatch(paste(sprintf("    %s | %s",
+                           names(tools::md5sum(sort(list.files(pattern = "\\.(ipynb)$", recursive = TRUE)))),
+                           tools::md5sum(sort(list.files(pattern = "\\.(ipynb)$", recursive = TRUE)))),
+                   collapse = "\n "), error = function(e) "    Not available"), "\n\n",
+    
+    "Python scripts (.py):\n",
+    #number of python files
+    "    Number of files: ", length(list.files(pattern = "\\.(py)$", recursive = TRUE)), "\n",
+    #md5 hashes
+    tryCatch(paste(sprintf("    %s | %s",
+                           names(tools::md5sum(sort(list.files(pattern = "\\.(py)$", recursive = TRUE)))),
+                           tools::md5sum(sort(list.files(pattern = "\\.(py)$", recursive = TRUE)))),
+                   collapse = "\n "), error = function(e) "    Not available"), "\n\n",
+    
+    "MATLAB files (.m):\n",
+    #number of matlab files
+    "    Number of files: ", length(list.files(pattern = "\\.m$", recursive = TRUE)), "\n",
+    #md5 hashes
+    tryCatch(paste(sprintf("    %s | %s",
+                           names(tools::md5sum(sort(list.files(pattern = "\\.m$", recursive = TRUE)))),
+                           tools::md5sum(sort(list.files(pattern = "\\.m$", recursive = TRUE)))),
+                   collapse = "\n "), error = function(e) "    Not available"), "\n\n",
+    
+    "SPSS files (.sps):\n",
+    #number of spss files
+    "    Number of files: ", length(list.files(pattern = "\\.sps$", recursive = TRUE)), "\n",
+    #md5 hashes
+    tryCatch(paste(sprintf("    %s | %s",
+                           names(tools::md5sum(sort(list.files(pattern = "\\.sps$", recursive = TRUE)))),
+                           tools::md5sum(sort(list.files(pattern = "\\.sps$", recursive = TRUE)))),
+                   collapse = "\n "), error = function(e) "    Not available"), "\n\n",
+    
+    "Stata files (.do):\n",
+    #number of stata files
+    "    Number of files: ", length(list.files(pattern = "\\.do$", recursive = TRUE)), "\n",
+    #md5 hashes
+    tryCatch(paste(sprintf("    %s | %s",
+                           names(tools::md5sum(sort(list.files(pattern = "\\.do$", recursive = TRUE)))),
+                           tools::md5sum(sort(list.files(pattern = "\\.do$", recursive = TRUE)))),
+                   collapse = "\n "), error = function(e) "    Not available"), "\n\n",
+    
+    "Excel files (.xls, .xlsx, .xlsm):\n",
+    #number of excel files
+    "    Number of files: ", length(list.files(pattern = "\\.(xls|xlsx|xlsm)$", recursive = TRUE)), "\n",
+    #md5 hashes
+    tryCatch(paste(sprintf("    %s | %s",
+                           names(tools::md5sum(sort(list.files(pattern = "\\.(xls|xlsx|xlsm)$", 
+                                                               recursive = TRUE)))),
+                           tools::md5sum(sort(list.files(pattern = "\\.(xls|xlsx|xlsm)$", recursive = TRUE)))),
+                   collapse = "\n "), error = function(e) "    Not available"), "\n\n",
+    
+    "SAS files (.sas):\n",
+    #number of sas files
+    "    Number of files: ", length(list.files(pattern = "\\.(sas)$", recursive = TRUE)), "\n",
+    #md5 hashes
+    tryCatch(paste(sprintf("    %s | %s",
+                           names(tools::md5sum(sort(list.files(pattern = "\\.(sas)$", 
+                                                               recursive = TRUE)))),
+                           tools::md5sum(sort(list.files(pattern = "\\.(sas)$", recursive = TRUE)))),
+                   collapse = "\n "), error = function(e) "    Not available"), "\n\n",
+    
+    "JASP files (.jasp):\n",
+    #number of jasp files
+    "    Number of files: ", length(list.files(pattern = "\\.jasp$", recursive = TRUE)), "\n",
+    #md5 hashes
+    tryCatch(paste(sprintf("    %s | %s",
+                           names(tools::md5sum(sort(list.files(pattern = "\\.jasp$", recursive = TRUE)))),
+                           tools::md5sum(sort(list.files(pattern = "\\.jasp$", recursive = TRUE)))),
+                   collapse = "\n "), error = function(e) "    Not available"), "\n\n",
+    
+    "Jamovi files (.omv):\n",
+    #number of jamovi files
+    "    Number of files: ", length(list.files(pattern = "\\.omv$", recursive = TRUE)), "\n",
+    #md5 hashes
+    tryCatch(paste(sprintf("    %s | %s",
+                           names(tools::md5sum(sort(list.files(pattern = "\\.omv$", recursive = TRUE)))),
+                           tools::md5sum(sort(list.files(pattern = "\\.omv$", recursive = TRUE)))),
+                   collapse = "\n "), error = function(e) "    Not available"), "\n\n",
+    
+    "Power BI files (.pbix):\n",
+    #number of power bi files
+    "    Number of files: ", length(list.files(pattern = "\\.pbix$", recursive = TRUE)), "\n",
+    #md5 hashes
+    tryCatch(paste(sprintf("    %s | %s",
+                           names(tools::md5sum(sort(list.files(pattern = "\\.pbix$", recursive = TRUE)))),
+                           tools::md5sum(sort(list.files(pattern = "\\.pbix$", recursive = TRUE)))),
+                   collapse = "\n "), error = function(e) "    Not available"), "\n\n",
+    
+    #input dataset tracking
+    "=== INPUT DATA ===\n",
+    
+    "Tabular data files (...):\n",
+    "    Number of files: ", length(list.files(pattern = "\\.(csv|tsv|tab|psv|dat|fwf|txt|xls|xlsx|xlsm|ods|numbers)$", recursive = TRUE)), "\n",
+    tryCatch(paste(sprintf("    %s | %s",
+                           names(tools::md5sum(sort(list.files(pattern = "\\.(csv|tsv|tab|psv|dat|fwf|txt|xls|xlsx|xlsm|ods|numbers)$", 
+                                                               recursive = TRUE)))),
+                           tools::md5sum(sort(list.files(pattern = "\\.(csv|tsv|tab|psv|dat|fwf|txt|xls|xlsx|xlsm|ods|numbers)$", recursive = TRUE)))),
+                   collapse = "\n "), error = function(e) "    Not available"), "\n\n",
+    
+    "Structured data files (...):\n",
+    "    Number of files: ", length(list.files(pattern = "\\.(json|ndjson|xml|yaml|yml)$", recursive = TRUE)), "\n",
+    tryCatch(paste(sprintf("    %s | %s",
+                           names(tools::md5sum(sort(list.files(pattern = "\\.(json|ndjson|xml|yaml|yml)$", 
+                                                               recursive = TRUE)))),
+                           tools::md5sum(sort(list.files(pattern = "\\.(json|ndjson|xml|yaml|yml)$", recursive = TRUE)))),
+                   collapse = "\n "), error = function(e) "    Not available"), "\n\n",
+    
+    "R data files (...):\n",
+    "    Number of files: ", length(list.files(pattern = "\\.(rds|rda|RData)$", recursive = TRUE)), "\n",
+    tryCatch(paste(sprintf("    %s | %s",
+                           names(tools::md5sum(sort(list.files(pattern = "\\.(rds|rda|RData)$", 
+                                                               recursive = TRUE)))),
+                           tools::md5sum(sort(list.files(pattern = "\\.(rds|rda|RData)$", recursive = TRUE)))),
+                   collapse = "\n "), error = function(e) "    Not available"), "\n\n",
+    
+    "Database files (...):\n",
+    "    Number of files: ", length(list.files(pattern = "\\.(sqlite|sqlite3|db|duckdb|mdb|accdb|sql)$", recursive = TRUE)), "\n",
+    tryCatch(paste(sprintf("    %s | %s",
+                           names(tools::md5sum(sort(list.files(pattern = "\\.(sqlite|sqlite3|db|duckdb|mdb|accdb|sql)$", 
+                                                               recursive = TRUE)))),
+                           tools::md5sum(sort(list.files(pattern = "\\.(sqlite|sqlite3|db|duckdb|mdb|accdb|sql)$", recursive = TRUE)))),
+                   collapse = "\n "), error = function(e) "    Not available"), "\n\n",
+    
+    "Statistical/legacy data files (...):\n",
+    "    Number of files: ", length(list.files(pattern = "\\.(sav|zsav|por|dta|sas7bdat|xpt|sd2|sd7|mtp|jmp|wf1|gdt)$", recursive = TRUE)), "\n",
+    tryCatch(paste(sprintf("    %s | %s",
+                           names(tools::md5sum(sort(list.files(pattern = "\\.(sav|zsav|por|dta|sas7bdat|xpt|sd2|sd7|mtp|jmp|wf1|gdt)$", 
+                                                               recursive = TRUE)))),
+                           tools::md5sum(sort(list.files(pattern = "\\.(sav|zsav|por|dta|sas7bdat|xpt|sd2|sd7|mtp|jmp|wf1|gdt)$", recursive = TRUE)))),
+                   collapse = "\n "), error = function(e) "    Not available"), "\n\n",
+    
+    "Big data/scientific files (...):\n",
+    "    Number of files: ", length(list.files(pattern = "\\.(feather|arrow|ipc|parquet|orc|avro|delta|iceberg|h5|hdf5|nc|fits|nii|mat|npy|npz|pkl|pickle|joblib)$", recursive = TRUE)), "\n",
+    tryCatch(paste(sprintf("    %s | %s",
+                           names(tools::md5sum(sort(list.files(pattern = "\\.(feather|arrow|ipc|parquet|orc|avro|delta|iceberg|h5|hdf5|nc|fits|nii|mat|npy|npz|pkl|pickle|joblib)$", 
+                                                               recursive = TRUE)))),
+                           tools::md5sum(sort(list.files(pattern = "\\.(feather|arrow|ipc|parquet|orc|avro|delta|iceberg|h5|hdf5|nc|fits|nii|mat|npy|npz|pkl|pickle|joblib)$", recursive = TRUE)))),
+                   collapse = "\n "), error = function(e) "    Not available"), "\n\n",
+    
+    "Geospatial data files (...):\n",
+    "    Number of files: ", length(list.files(pattern = "\\.(shp|geojson|gpkg|kml)$", recursive = TRUE)), "\n",
+    tryCatch(paste(sprintf("    %s | %s",
+                           names(tools::md5sum(sort(list.files(pattern = "\\.(shp|geojson|gpkg|kml)$", 
+                                                               recursive = TRUE)))),
+                           tools::md5sum(sort(list.files(pattern = "\\.(shp|geojson|gpkg|kml)$", recursive = TRUE)))),
+                   collapse = "\n "), error = function(e) "    Not available"), "\n\n",
+    
+    "Archive/dashboard files (...):\n",
+    "    Number of files: ", length(list.files(pattern = "\\.(zip|gz|bz2|xz|7z|pbix|hyper)$", recursive = TRUE)), "\n",
+    tryCatch(paste(sprintf("    %s | %s",
+                           names(tools::md5sum(sort(list.files(pattern = "\\.(zip|gz|bz2|xz|7z|pbix|hyper)$", 
+                                                               recursive = TRUE)))),
+                           tools::md5sum(sort(list.files(pattern = "\\.(zip|gz|bz2|xz|7z|pbix|hyper)$", recursive = TRUE)))),
+                   collapse = "\n "), error = function(e) "    Not available"), "\n\n",
+    
+    #full r session description
+    "=== R SESSION ===\n",
+    
+    "Loaded packages (with dependencies):\n",
+    paste(sapply(sort(grep("^package:", search(), value = TRUE)),
+                 function(pkg) paste0("    ", sub("^package:", "", pkg),
+                                      " (", packageVersion(sub("^package:", "", pkg)), ")\n",
+                                      "        Depends: ",gsub("\n", " ",
+                                                              tryCatch(packageDescription(
+                                                                sub("^package:", "", pkg))$Depends,
+                                                                error = function(e) "none")),"\n",
+                                      "        Imports: ",gsub("\n", " ",
+                                                              tryCatch(packageDescription(
+                                                                sub("^package:", "", pkg))$Imports,
+                                                                error = function(e) "none")))),
+          collapse = "\n"),"\n\n",
+
+    #library paths where r installs packages
+    "Library paths:\n",
+    paste0("    ", .libPaths(), collapse = "\n "),"\n\n",
+
+    #search path elements that are not packages
+    "Search path (non-package):\n",
+    if(length(setdiff(search(),
+                      grep("^package:", search(), value = TRUE))) > 0) {
+      paste0("    ",paste(sort(setdiff(search(),grep("^package:", search(), value = TRUE))),
+                          collapse = "\n     "))
+    } else {"    None"},"\n\n",
+    
+    #objects currently in memory
+    "Objects in memory:\n",
+    "    Count:             ", length(ls()), "\n",
+    
+    #total memory used by objects
+    if(length(ls()) > 0) {
+      paste0("    Total memory (KB): ",
+             round(sum(sapply(ls(), function(x)
+               tryCatch(as.numeric(object.size(get(x))),
+                        error = function(e) 0))) / 1024, 2))
+    } else {"    0 KB used (no objects in memory)"},"\n",
+    
+    #list objects with their class
+    if(length(ls()) > 0) {
+      paste0("    List:\n",
+             paste0("        ",ls(), " (",sapply(ls(), function(x) class(get(x))[1]),")",
+                    collapse = "\n"))
+    } else {"    No objects"},"\n\n",
+    
+    #working directory and contents
+    "=== FILE SYSTEM ===\n",
+    "Working directory:\n",
+    "    Path:        ", getwd(), "\n",
+    #total number of files in working directory and subdirectories
+    "    Number of files: ", length(list.files(path = getwd(), recursive = TRUE)), "\n",
+    "    Directory contents (including subdirectories):\n",
+    #detailed file listing with type, extension, and path
+    if (length(list.files(path = getwd(), recursive = TRUE)) > 0) {
+      paste0("        ", 
+             sprintf("%s | type: %s | size: %.3f KB | path: %s", 
+                     list.files(path = getwd(), recursive = TRUE),
+                     ifelse(tools::file_ext(list.files(path = getwd(), recursive = TRUE)) == "", 
+                            "directory", tools::file_ext(list.files(path = getwd(), recursive = TRUE))),
+                     file.info(list.files(path = getwd(), recursive = TRUE))$size / 1024,
+                     dirname(list.files(path = getwd(), recursive = TRUE))),
+             collapse = "\n ")
+      } else {"       Empty directory"},"\n\n",
+
+    #final separator for readability
+    "=========================================\n")
+```
+
+# **The dataset**
+
+This template uses a real-world dataset from the OpenPsychometrics project, which contains responses used to compute the Big Five personality traits. The data are freely available and are suitable for demonstrating data cleaning, descriptive statistics, and multivariate analysis workflows.
+
+The dataset can be downloaded from the following source (Open Psychometrics Project, n.d.):
+
+[http://openpsychometrics.org/_rawdata/BIG5.zip](http://openpsychometrics.org/_rawdata/BIG5.zip)
+
+```{r}
+#link where is possible downloaded data used for example
+url <- "http://openpsychometrics.org/_rawdata/BIG5.zip"
+
+#name of the local file where the dataset will be saved
+destfile <- "BIG5.zip"
+
+#download the ZIP file from the specified URL
+download.file(url, destfile = destfile, mode = "wb")
+
+#extract the contents of the ZIP archive into a folder
+unzip(destfile, exdir = "BIG5_data")
+```
+
+## **Data Dictionary**
+
+The data were collected around 2012 through an interactive online personality assessment. Participants were informed at the beginning of the test that their responses would be recorded and used for research purposes. At the end of the questionnaire, participants were asked to confirm their consent for the use of their data in research. Only participants who provided consent were included in the dataset.
+
+Participants completed a personality questionnaire based on the Big Five personality traits. Each item was rated on a 5-point Likert scale:
+
+| Value | Meaning          |
+| ----- | ---------------- |
+| 1     | Disagree         |
+| 3     | Neutral          |
+| 5     | Agree            |
+| 0     | Missing response |
+
+Items were presented on a single page in the following order: `E1, N2, A1, C1, O1, E2, ...`
+
+### Extraversion (E)
+
+| Code | Item                                            |
+| ---- | ----------------------------------------------- |
+| E1   | I am the life of the party.                     |
+| E2   | I don't talk a lot.                             |
+| E3   | I feel comfortable around people.               |
+| E4   | I keep in the background.                       |
+| E5   | I start conversations.                          |
+| E6   | I have little to say.                           |
+| E7   | I talk to a lot of different people at parties. |
+| E8   | I don't like to draw attention to myself.       |
+| E9   | I don't mind being the center of attention.     |
+| E10  | I am quiet around strangers.                    |
+
+### Neuroticism (N)
+
+| Code | Item                           |
+| ---- | ------------------------------ |
+| N1   | I get stressed out easily.     |
+| N2   | I am relaxed most of the time. |
+| N3   | I worry about things.          |
+| N4   | I seldom feel blue.            |
+| N5   | I am easily disturbed.         |
+| N6   | I get upset easily.            |
+| N7   | I change my mood a lot.        |
+| N8   | I have frequent mood swings.   |
+| N9   | I get irritated easily.        |
+| N10  | I often feel blue.             |
+
+### Agreeableness (A)
+
+| Code | Item                                            |
+| ---- | ----------------------------------------------- |
+| A1   | I feel little concern for others.               |
+| A2   | I am interested in people.                      |
+| A3   | I insult people.                                |
+| A4   | I sympathize with others' feelings.             |
+| A5   | I am not interested in other people's problems. |
+| A6   | I have a soft heart.                            |
+| A7   | I am not really interested in others.           |
+| A8   | I take time out for others.                     |
+| A9   | I feel others' emotions.                        |
+| A10  | I make people feel at ease.                     |
+
+### Conscientiousness (C)
+
+| Code | Item                                                     |
+| ---- | -------------------------------------------------------- |
+| C1   | I am always prepared.                                    |
+| C2   | I leave my belongings around.                            |
+| C3   | I pay attention to details.                              |
+| C4   | I make a mess of things.                                 |
+| C5   | I get chores done right away.                            |
+| C6   | I often forget to put things back in their proper place. |
+| C7   | I like order.                                            |
+| C8   | I shirk my duties.                                       |
+| C9   | I follow a schedule.                                     |
+| C10  | I am exacting in my work.                                |
+
+### Openness to Experience (O)
+
+| Code | Item                                            |
+| ---- | ----------------------------------------------- |
+| O1   | I have a rich vocabulary.                       |
+| O2   | I have difficulty understanding abstract ideas. |
+| O3   | I have a vivid imagination.                     |
+| O4   | I am not interested in abstract ideas.          |
+| O5   | I have excellent ideas.                         |
+| O6   | I do not have a good imagination.               |
+| O7   | I am quick to understand things.                |
+| O8   | I use difficult words.                          |
+| O9   | I spend time reflecting on things.              |
+| O10  | I am full of ideas.                             |
+
+### Demographic Variables
+
+The following demographic information was collected on a separate page:
+
+| Variable | Description                                                                       |
+| -------- | --------------------------------------------------------------------------------- |
+| `race`   | Self-reported ethnic background selected from a predefined list of 13 categories. |
+| `age`    | Age entered as free text. Participants younger than 13 years were excluded.       |
+| `engnat` | Native English speaker (`1 = Yes`, `2 = No`, `0 = Missing`).                      |
+| `gender` | Gender (`1 = Male`, `2 = Female`, `3 = Other`, `0 = Missing`).                    |
+| `hand`   | Writing hand preference (`1 = Right`, `2 = Left`, `3 = Both`, `0 = Missing`).     |
+
+Participants were also asked to confirm that their responses were accurate and could be used for research purposes. Records without confirmation were discarded.
+
+### Technical Variables
+
+Additional variables were derived from technical metadata collected during participation:
+
+| Variable  | Description                                                           |
+| --------- | --------------------------------------------------------------------- |
+| `country` | Participant's estimated location represented by the ISO country code. |
+| `source`  | Traffic source inferred from the HTTP Referrer field.                 |
+
+The `source` variable was encoded as follows:
+
+| Code | Source                                       |
+| ---- | -------------------------------------------- |
+| 1    | Another page within the test website         |
+| 2    | Google                                       |
+| 3    | Facebook                                     |
+| 4    | Educational domain (`.edu`, `.edu.au`, etc.) |
+| 6    | Other source or missing HTTP Referrer        |
+
+## **First exploration of the dataset**
+
+### **Data import and dataset dimensions**
+
+```{r}
+#remove all objects from the environment except those that are explicitly needed
+rm(list = setdiff(ls(), c("data_0")))
+
+data_0 <- read_delim(here::here("BIG5_data/BIG5", "data.csv"), 
+                    #use here::here() to build a project-relative path instead of an absolute path
+                    #this ensures portability across different computers and operating systems
+                    #the path starts from the root of the R project (RStudio Project or Git directory)
+                     delim = "\t", 
+                    #specify the column separator; in this case the file is a TSV (Tab-Separated Values)
+                    #where columns are separated by tab characters
+                     escape_double = FALSE, 
+                    #define how double quotes are handled in the input file
+                     trim_ws = TRUE)
+                    #automatically remove leading and trailing whitespace from all values
+                    #this helps avoid formatting issues and incorrect comparisons
+
+#print dataset dimensions
+cat("The dataset has", nrow(data_0), "rows and", ncol(data_0), "columns\n")
+```
+
+#### **Renaming variables**
+
+```{r}
+original_names <- names(data_0) #store the original variable names for later comparison
+
+#convert variable names to snake_case style.
+#snake_case is a naming convention where all letters are lowercase and words are separated by underscores (_)
+data_1 <- data_0 %>% janitor::clean_names() 
+
+new_names <- names(data_1) #store the new snake_case variable names for comparison
+
+#create a mapping table
+mapping <- tibble(`Original name` = original_names, `Snake_case name` = new_names)
+
+#display mapping table in HTML format
+mapping %>%
+  select(`Original name`, `Snake_case name`) %>%
+  #create an HTML table
+  kbl("html", caption = "Mapping between original and renamed variables",
+      align = c("l", "l")) %>% #left-align columns
+  #apply HTML styling to the table
+  kable_styling(bootstrap_options = c("striped",  #alternating row colors for readability
+                                      "bordered", #add table borders
+                                      "condensed"), #reduce spacing for a more compact table
+                font_size = 10, #set table font size
+                fixed_thead = TRUE) %>%  #keep header fixed while scrolling
+  #make the table scrollable when it exceeds a defined height
+  scroll_box(height = "400px")
+
+#remove all objects except the dataset
+rm(list = setdiff(ls(), c("data_1")))
+```
+
+### **Dataset overview**
+
+```{r}
+set.seed(42) #set a seed for reproducibility
+
+data_1 %>% 
+ #randomly select 6 observations; results depend on the seed
+  slice_sample(n = 6) %>% 
+  #display the dataset as an HTML table
+  kbl("html", caption = "6 random observations from the dataset",
+      align = c("l", "l")) %>% #left-align columns
+  #apply HTML styling to the table
+  kable_styling(bootstrap_options = c("striped",  #alternating row colors for readability
+                                      "bordered", #add table borders
+                                      "condensed"), #reduce spacing for a more compact table
+                font_size = 10, #set table font size
+                fixed_thead = TRUE) %>%  #keep header fixed while scrolling
+  #make the table scrollable when it exceeds a defined height
+  scroll_box(height = "400px")
+```
+
+### **Missing or invalid values**
+
+#### **Check by variable**
+
+```{r}
+data_1 %>%
+  #convert everything to character; this is to standardize the handling of values in subsequent operations
+  mutate(across(everything(), as.character)) %>%
+  #reshape the dataset from wide to long format, with each row representing an observed value of a variable
+  pivot_longer(everything(), names_to = "Variable", values_to = "Value") %>%
+  #group by variable to compute different types of missing or invalid values
+  group_by(Variable) %>%
+  summarise(NA_count = sum(is.na(Value)), #true NA values
+            empty_count = sum(Value == "", na.rm = TRUE), #empty strings
+            space_count = sum(Value == " ", na.rm = TRUE), #strings containing only a space
+            #toupper converts any combination of uppercase and lowercase letters to uppercase
+            NONE_count = sum(toupper(Value) == "NONE", na.rm = TRUE), #textual "NONE" values 
+            NULL_count = sum(toupper(Value) == "NULL", na.rm = TRUE), #textual "NULL" values
+            NAN_count = sum(toupper(Value) == "NAN", na.rm = TRUE), #textual "NAN" values
+            total_obs = n(), #total observations per variable
+            .groups = "drop") %>% #remove grouping
+  #compute total invalid values and their percentage over total observations
+  mutate(total_invalid = NA_count + empty_count + space_count + NONE_count + NULL_count + NAN_count,
+         #compute percentage of invalid values over total and round to 3 decimals
+         perc_invalid = round((total_invalid / total_obs) * 100, 3)) %>%
+  arrange(desc(total_invalid)) %>% #sorted in descending order, from most to least problematic
+  #convert to HTML table
+  kbl("html", caption = "Missing or invalid values by variable", 
+      align = c("l", "l")) %>% #left-align columns
+  #apply HTML styling to the table
+  kable_styling(bootstrap_options = c("striped",  #alternating row colors for readability
+                                      "bordered", #add table borders
+                                      "condensed"), #reduce spacing for a more compact table
+                font_size = 10, #set table font size
+                fixed_thead = TRUE) %>%  #keep header fixed while scrolling
+  #make the table scrollable when it exceeds a defined height
+  scroll_box(height = "400px")
+```
+
+#### **Check by observation**
+
+```{r}
+data_1 %>%
+  #convert all variables to character to avoid issues with non-standard missing value encodings
+  mutate(across(everything(), as.character)) %>%
+  #compute, for each observation (row), the number of invalid values
+  mutate(n_invalid = rowSums(is.na(.) | #true NA values OR
+                               . == "" | #empty strings OR
+                               . == " " | #single spaces OR
+                               toupper(.) == "NONE" | #missing values encoded as "NONE" OR
+                               toupper(.) == "NULL" | #missing values encoded as "NULL" OR
+                               toupper(.) == "NAN")) %>% #missing values encoded as "NAN"
+  #build the distribution of the number of invalid values per observation
+  count(n_invalid) %>% #how many rows have 0, 1, 2, ... invalid values
+  arrange(n_invalid) %>% #sort in ascending order, starting from rows without missing values
+  #rename columns to make the table more readable
+  rename(`Number of invalid per observation` = n_invalid,
+         `Number of observations` = n) %>%
+  #convert to HTML table
+  kbl("html", caption = "Distribution of missing or invalid values per observation", 
+      align = c("l", "l")) %>% #left-align columns
+  #apply HTML styling to the table
+  kable_styling(bootstrap_options = c("striped",  #alternating row colors for readability
+                                      "bordered", #add table borders
+                                      "condensed"), #reduce spacing for a more compact table
+                font_size = 10, #set table font size
+                fixed_thead = TRUE) %>%  #keep header fixed while scrolling
+  #make the table scrollable when it exceeds a defined height
+  scroll_box(height = "400px")
+```
+
+```{r}
+data_1 %>%
+  mutate(across(everything(), as.character)) %>% #convert all variables to character to avoid type issues
+  mutate(row_id = row_number()) %>% #create a sequential identifier for each row to track observations
+  #reshape the dataset from wide to long format, where each cell becomes a row
+  tidyr::pivot_longer(cols = -c(row_id),
+                      names_to = "item",
+                      values_to = "value") %>%
+  #define as "invalid" values that are missing, empty, or encoded as NONE/NULL/NAN
+  mutate(invalid = is.na(value) |
+           value == "" |
+           value == " " |
+           toupper(value) %in% c("NONE", "NULL", "NAN")) %>%
+
+  filter(invalid) %>% #keep only cells with invalid values
+  group_by(row_id) %>% #group by observation using the original row identifier
+  summarise(`Number of invalid values` = n(), #count how many invalid values each row has
+            `Incomplete variables` = paste(item, collapse = ", "), #list variables with issues
+            .groups = "drop") %>% #remove grouping after summarisation
+  arrange(desc(`Number of invalid values`)) %>% #sort observations from most to least problematic
+  #create formatted HTML table
+  kbl("html", caption = "Participants with missing or invalid values and corresponding variables", 
+      align = c("l", "l")) %>% #left-align columns
+  #apply HTML styling to the table
+  kable_styling(bootstrap_options = c("striped",  #alternating row colors for readability
+                                      "bordered", #add table borders
+                                      "condensed"), #reduce spacing for a more compact table
+                font_size = 10, #set table font size
+                fixed_thead = TRUE) %>%  #keep header fixed while scrolling
+  #make the table scrollable when it exceeds a defined height
+  scroll_box(height = "400px")
+```
+
+### **Non-informative variables**
+
+```{r}
+data_1 %>%
+  #convert everything to character to work with unique values
+  mutate(across(everything(), as.character)) %>%
+  #compute, for each variable, the number of unique values if the values are less than or equal to 100, they are also printed
+  summarise(across(everything(), 
+                   list(Num_unique_values = ~ n_distinct(.),
+                        Values = ~ {u <- unique(na.omit(.)) #remove non-informative NA values
+                        #if the number of levels is below 100, print them; otherwise indicate it
+                        if (length(u) <= 100) {paste(u, collapse = ", ")
+                          } else {"unique values > 100"}}))) %>%
+  #reshape the dataset from wide to long format to obtain one row per variable with its number of levels and values
+  pivot_longer(everything(),
+               names_to = c("Variable", ".value"),
+               names_pattern = "^(.*)_(Num_unique_values|Values)$") %>%
+  arrange(Num_unique_values) %>% #sort in ascending order by number of unique values
+  #create formatted HTML table
+  kbl("html", caption = "Number of unique values per variable", 
+      align = c("l", "l")) %>% #left-align columns
+  #apply HTML styling to the table
+  kable_styling(bootstrap_options = c("striped",  #alternating row colors for readability
+                                      "bordered", #add table borders
+                                      "condensed"), #reduce spacing for a more compact table
+                font_size = 10, #set table font size
+                fixed_thead = TRUE) %>%  #keep header fixed while scrolling
+  #make the table scrollable when it exceeds a defined height
+  scroll_box(height = "400px")
+```
+
+#### **Removal of degenerate (constant) variables**
+
+```{r}
+#print variables that are entirely NA and variables with only one unique value
+cat("All-NA variables:\n",
+    paste(names(select(data_1, where(~ all(is.na(.))))), collapse = "\n "),
+    "\n\nConstant variables:\n",
+    paste(names(select(data_1, where(~ n_distinct(., na.rm = FALSE) == 1))), collapse = "\n "),
+    "\n\n")
+
+data_2 <- data_1 %>%
+  select(where(~ !all(is.na(.)))) %>% #keep only columns that are not entirely NA
+  select(where(~ n_distinct(., na.rm = FALSE) > 1)) #keep only non-constant columns (with more than one unique value)
+
+#print dataset dimensions
+cat("The dataset has", nrow(data_2), "rows and", ncol(data_2), "columns\n")
+
+rm(list = setdiff(ls(), c("data_2")))
+```
+
+### **Type of variables**
+
+```{r}
+#compact structure of the object:
+#number of rows and columns of the dataset
+#column names, type of each column, and first observations of data_2
+glimpse(data_2)
+```
+
+```{r}
+data_2 %>%
+  select(everything()) %>% #select all variables in the dataset of interest
+  #convert to character to avoid implicit coercion and to manually identify non-numeric values
+  mutate(across(everything(), as.character)) %>%
+  #compute data quality metrics for each variable
+  summarise(across(everything(), 
+                   list(
+                     #count of values that cannot be converted to numeric, 
+                     #where coercion produces NA indicating non-numeric values
+                     Num_non_numeric_values = ~ {
+                       v <- . #include original NAs, which are excluded in the following sum
+                       sum(!is.na(v) & is.na(suppressWarnings(as.numeric(v))))},
+                     #percentage of non-numeric values over total observations
+                     Perc_non_numeric_values = ~ {
+                       v <- . #include original NAs, which are excluded in the numerator of the percentage
+                       sum(!is.na(v) & is.na(suppressWarnings(as.numeric(v)))) / length(v) * 100},
+                     #extract observed non-numeric values to diagnose import or encoding issues
+                     Non_numeric_values = ~ {
+                       v <- na.omit(.) #exclude structural missing values
+                       #select only values that fail numeric conversion
+                       u <- unique(v[is.na(suppressWarnings(as.numeric(v)))])
+                       #if fewer than 100 values, display them explicitly; otherwise avoid long output
+                       if (length(u) <= 100) {paste(u, collapse = ", ")
+                       } else {"non-numeric values > 100"}}))) %>%
+  #reshape from wide to long format to obtain one row per variable with all associated metrics
+  pivot_longer(everything(),
+               names_to = c("Variable", ".value"),
+               names_pattern = "^(.*)_(Num_non_numeric_values|Perc_non_numeric_values|Non_numeric_values)$") %>%
+  #round percentage to three decimals for readability
+  mutate(Perc_non_numeric_values = round(Perc_non_numeric_values, 3)) %>%
+  #sort variables from most to least problematic
+  arrange(desc(Num_non_numeric_values)) %>%
+  #output as HTML table
+  kbl("html", caption = "Non-numeric values per variable", 
+      align = c("l", "l")) %>% #left-align columns
+  #apply HTML styling to the table
+  kable_styling(bootstrap_options = c("striped",  #alternating row colors for readability
+                                      "bordered", #add table borders
+                                      "condensed"), #reduce spacing for a more compact table
+                font_size = 10, #set table font size
+                fixed_thead = TRUE) %>%  #keep header fixed while scrolling
+  #make the table scrollable when it exceeds a defined height
+  scroll_box(height = "400px")
+```
+
+```{r}
+data_2 %>%
+  select(everything()) %>% #select all variables in the dataset of interest
+  #convert all variables to character to avoid implicit coercion and to manually handle numeric conversion in subsequent steps
+  mutate(across(everything(), as.character)) %>%
+  #compute descriptive metrics on integer numeric values for each variable
+  summarise(across(
+    everything(),
+    list(
+      #count of integer numeric values present in the variable
+      Num_integer_values = ~ {
+        #attempt numeric conversion while suppressing warnings
+        #generated by non-convertible values
+        v <- suppressWarnings(as.numeric(.))
+        #count only non-missing values after conversion that have zero remainder in division by 1, i.e., no decimal component
+        sum(!is.na(v) & v %% 1 == 0)},
+      #compute percentage of integer numeric values over total observations in the variable
+      Perc_integer_values = ~ {
+        v <- suppressWarnings(as.numeric(.)) #convert variable to numeric
+        #compute percentage share of integer values relative to total variable length
+        sum(!is.na(v) & v %% 1 == 0) / length(v) * 100},
+      #extract observed integer numeric values
+      #for diagnostic and exploratory purposes
+      Integer_values = ~ {
+        v <- suppressWarnings(as.numeric(.)) #convert to numeric
+        u <- unique(v[!is.na(v) & v %% 1 == 0]) #select only non-missing integer numeric values
+        #if the number of distinct values is manageable, display them explicitly
+        if(length(u) <= 100) {paste(u, collapse = ", ")
+        } else {"integer values > 100"}}))) %>% #otherwise avoid excessively long output
+  #reshape dataset from wide to long format, obtaining one row per variable with all associated metrics
+  pivot_longer(everything(),
+               names_to = c("Variable", ".value"),
+               names_pattern = "^(.*)_(Num_integer_values|Perc_integer_values|Integer_values)$") %>%
+  #round percentage of integer values to three decimals for readability
+  mutate(Perc_integer_values = round(Perc_integer_values, 3)) %>%
+  #sort variables from most to least rich in integer values
+  arrange(desc(Num_integer_values)) %>%
+  #generate final output in HTML format
+  kbl("html", caption = "Integer numeric values per variable", 
+      align = c("l", "l")) %>% #left-align columns
+  #apply HTML styling to the table
+  kable_styling(bootstrap_options = c("striped",  #alternating row colors for readability
+                                      "bordered", #add table borders
+                                      "condensed"), #reduce spacing for a more compact table
+                font_size = 10, #set table font size
+                fixed_thead = TRUE) %>%  #keep header fixed while scrolling
+  #make the table scrollable when it exceeds a defined height
+  scroll_box(height = "400px")
+```
+
+```{r}
+data_2 %>%
+  select(everything()) %>% #select all variables in the dataset of interest
+  #convert all variables to character to avoid implicit coercion and to manually handle numeric conversion in subsequent steps
+  mutate(across(everything(), as.character)) %>%
+  #compute descriptive metrics on decimal numeric values for each variable
+  summarise(across(
+    everything(),
+    list(
+      #count of decimal numeric values present in the variable
+      Num_decimal_values = ~ {
+        #attempt numeric conversion while suppressing warnings generated by non-convertible values
+        v <- suppressWarnings(as.numeric(.))
+        #count only non-missing values after conversion with a non-zero remainder in division by 1, i.e., values with a decimal component
+        sum(!is.na(v) & v %% 1 != 0)},
+      #compute percentage of decimal numeric values over total observations in the variable
+      Perc_decimal_values = ~ {
+        #convert variable to numeric
+        v <- suppressWarnings(as.numeric(.))
+        #compute percentage share of decimal values relative to total variable length
+        sum(!is.na(v) & v %% 1 != 0) / length(v) * 100},
+      #extract observed decimal numeric values for diagnostic and exploratory purposes
+      Decimal_values = ~ {
+        #convert to numeric
+        v <- suppressWarnings(as.numeric(.))
+        #select only non-missing decimal numeric values
+        u <- unique(v[!is.na(v) & v %% 1 != 0])
+        #if the number of distinct values is manageable, display them explicitly
+        if(length(u) <= 100) {paste(u, collapse = ", ")
+        } else {"decimal values > 100"}}))) %>% #otherwise avoid excessively long output
+  #reshape dataset from wide to long format, obtaining one row per variable with all associated metrics
+  pivot_longer(everything(),
+               names_to = c("Variable", ".value"),
+               names_pattern = "^(.*)_(Num_decimal_values|Perc_decimal_values|Decimal_values)$") %>%
+  #round percentage of decimal values to three decimals for readability
+  mutate(Perc_decimal_values = round(Perc_decimal_values, 3)) %>%
+  #sort variables from most to least rich in decimal values
+  arrange(desc(Num_decimal_values)) %>%
+  #generate final output in HTML format
+  kbl("html", caption = "Decimal numeric values per variable", 
+      align = c("l", "l")) %>% #left-align columns
+  #apply HTML styling to the table
+  kable_styling(bootstrap_options = c("striped",  #alternating row colors for readability
+                                      "bordered", #add table borders
+                                      "condensed"), #reduce spacing for a more compact table
+                font_size = 10, #set table font size
+                fixed_thead = TRUE) %>%  #keep header fixed while scrolling
+  #make the table scrollable when it exceeds a defined height
+  scroll_box(height = "400px")
+```
+
+### **Summary statistics by variable**
+
+```{r}
+data_2 %>% 
+  #base R function that returns automatic descriptive statistics for each variable:
+  #for numeric variables it shows min, quartiles, median, mean, max,
+  #and for categorical variables it shows frequencies or levels
+  summary() %>% 
+  #generate the final output in HTML format
+  kbl("html", caption = "Summary statistics by variable using: summary {base}", 
+      align = c("l", "l")) %>% #left-align columns
+  #apply HTML styling to the table
+  kable_styling(bootstrap_options = c("striped",  #alternating row colors for readability
+                                      "bordered", #add table borders
+                                      "condensed"), #reduce spacing for a more compact table
+                font_size = 10, #set table font size
+                fixed_thead = TRUE) %>%  #keep header fixed while scrolling
+  #make the table scrollable when it exceeds a defined height
+  scroll_box(height = "400px")
+```
+
+```{r}
+data_2 %>% 
+  select(where(is.numeric)) %>% #select only numeric variables
+  psych::describe(type = 1) %>% 
+  #generate the final output in HTML format
+  kbl("html", caption = "Summary statistics by numeric variable using: describe {psych}", 
+      align = c("l", "l")) %>% #left-align columns
+  #apply HTML styling to the table
+  kable_styling(bootstrap_options = c("striped",  #alternating row colors for readability
+                                      "bordered", #add table borders
+                                      "condensed"), #reduce spacing for a more compact table
+                font_size = 10, #set table font size
+                fixed_thead = TRUE) %>%  #keep header fixed while scrolling
+  #make the table scrollable when it exceeds a defined height
+  scroll_box(height = "400px")
+```
+
+```{r}
+data_2 %>% 
+  select(where(is.numeric)) %>% #select only numeric variables
+  skimr::skim() %>% 
+  #generate the final output in HTML format
+  kbl("html", caption = "Summary statistics by variable using: skim {skimr}", 
+      align = c("l", "l")) %>% #left-align columns
+  #apply HTML styling to the table
+  kable_styling(bootstrap_options = c("striped",  #alternating row colors for readability
+                                      "bordered", #add table borders
+                                      "condensed"), #reduce spacing for a more compact table
+                font_size = 10, #set table font size
+                fixed_thead = TRUE) %>%  #keep header fixed while scrolling
+  #make the table scrollable when it exceeds a defined height
+  scroll_box(height = "400px")
+```
+
+# **Associations between variables**
+
+Because the dataset may contain both qualitative and quantitative variables (Stevens, 1946), a single correlation measure was not applied. Instead, multiple association indices were used, each appropriate for a different type of relationship between variable types. In particular, the measures used were:
+
+1. Pearson correlation coefficient (Pearson, 1895), which measures the linear relationship between two numerical variables and is computed in R using the `cor` function from the `stats` package, specifying the "pearson" method. Its formula is:
+
+   $$
+   \rho = \frac{\sum_{i=1}^{n} (X_i - \bar{X})(Y_i - \bar{Y})}{\sqrt{\sum_{i=1}^{n} (X_i - \bar{X})^2 \sum (Y_i - \bar{Y})^2}}
+   $$
+
+   Where:
+
+   * $X_i$ and $Y_i$ are the values of variables $X$ and $Y$,
+   * $\bar{X}$ and $\bar{Y}$ are the means of variables $X$ and $Y$,
+   * $\rho$ is the Pearson correlation coefficient, ranging from -1 (perfect negative correlation) to 1 (perfect positive correlation).
+
+2. Cramér’s V (Cramér, 1946), a measure of association between two nominal variables, computed as:
+
+   $$
+   V = \sqrt{\frac{\chi^2 / n}{\min(k - 1, r - 1)}}
+   $$
+
+   Where:
+
+   * $\chi^2$ is the chi-square test statistic for independence between the variables,
+   * $n$ is the total number of observations in the dataset,
+   * $k$ and $r$ are the number of categories of the two variables involved.
+
+   This measure ranges from 0 (no association) to 1 (perfect association). In general:
+
+   * $V > 0.1$: weak association,
+   * $V > 0.3$: moderate association,
+   * $V > 0.5$: strong association.
+
+   However, in sample data, Cramér’s V tends to overestimate the strength of association. To correct this bias, the following formula is applied (Bergsma, 2013):
+
+   $$
+   \tilde{V} = \sqrt{\frac{\tilde{\varphi}^2}{\min(\tilde{k} - 1, \tilde{r} - 1)}}
+   $$
+
+   Where:
+
+   * $\tilde{\varphi}^2 = \max\left(0, \varphi^2 - \frac{(k - 1)(r - 1)}{n - 1}\right)$ is the bias-corrected version of $\varphi^2$,
+   * $\tilde{k} = k - \frac{(k - 1)^2}{n - 1}$ and $\tilde{r} = r - \frac{(r - 1)^2}{n - 1}$ are the corrections for the number of categories.
+
+   This index was computed in R using the `cramersV` function from the `rcompanion` package (Mangiafico, 2025), applying the bias correction.
+
+3. Spearman correlation, used to measure monotonic association (i.e., when one variable tends to increase or decrease consistently with another, even if the relationship is not linear) between two ordinal variables, or between a numerical and an ordinal variable. It is a non-parametric version of Pearson correlation, based on ranks rather than raw values. It is computed in R using the `cor` function from the `stats` package, specifying the "spearman" method. Its formula is:
+
+   $$
+   \rho_s = 1 - \frac{6 \sum d_i^2}{n(n^2 - 1)}
+   $$
+
+   Where:
+
+   * $d_i$ is the difference between the ranks of the two variables for each observation $i$,
+   * $n$ is the number of observations,
+   * $\rho_s$ ranges from -1 (perfect negative monotonic correlation) to 1 (perfect positive monotonic correlation).
+
+   Spearman correlation is particularly useful when relationships between variables are not linear but still preserve a consistent ordering.
+
+4. Eta coefficient (Cohen, 1988), also known as the correlation ratio, is a measure used to assess the association between a categorical variable (nominal or ordinal) and a numerical variable. Unlike Pearson’s $\rho$, $\eta$ does not assume linearity in the relationship; instead, it measures the proportion of total variance explained by grouping based on the categorical variable, with values ranging from 0 (no association) to 1 (perfect association, where all variability in the numerical variable is explained by the categorical grouping).
+
+   The general formula is:
+
+   $$
+   \eta = \sqrt{\frac{\text{BSS}}{\text{TSS}}}
+   $$
+
+   Where:
+
+   * $\text{TSS} = \sum_{i=1}^n (Y_i - \bar{Y})^2$ is the total sum of squares around the overall mean $\bar{Y}$,
+   * $\text{BSS} = \sum_{j=1}^k n_j (\bar{Y}_j - \bar{Y})^2$ is the between-group sum of squares, representing the variability explained by the categorical variable,
+   * $n_j$ is the number of observations in group $j$,
+   * $\bar{Y}_j$ is the mean of group $j$.
+
+   The $\eta$ index was computed in R using a custom function that takes as input a categorical vector and a numerical vector. Categories are converted into factors to group the data, and for each group the mean and number of observations are computed, while the overall mean is calculated across all values. The total variance is then computed as the sum of squared deviations from the overall mean, and the explained variance is obtained by summing, for each group, the product of group size and squared deviation between group mean and overall mean. The ratio between explained and total variance yields $\eta^2$, whose square root gives the $\eta$ coefficient, which is finally returned as the function output.
+
+
+```{r}
+#mixed association matrix (Pearson, Spearman, Eta, and Cramér’s V)
+mixed_assoc_matrix <- function(df) {
+  vars <- names(df)
+  n <- length(vars)
+  mat <- matrix(NA, n, n)
+  colnames(mat) <- rownames(mat) <- vars
+  
+  for (i in 1:n) {
+    for (j in 1:n) {
+      x <- df[[i]]
+      y <- df[[j]]
+      #both numeric: Pearson correlation
+      if (is.numeric(x) && is.numeric(y)) {
+        mat[i, j] <- cor(x, y, method = "pearson", use = "pairwise.complete.obs")
+      #both ordinal: Spearman correlation
+      } else if (is.ordered(x) && is.ordered(y)) {
+        mat[i, j] <- cor(as.numeric(x), as.numeric(y), method = "spearman", use = "pairwise.complete.obs")
+        #one numeric and one ordinal: Spearman correlation
+        } else if ((is.ordered(x) && is.numeric(y)) || (is.numeric(x) && is.ordered(y))) {
+          mat[i, j] <- cor(as.numeric(x), as.numeric(y), method = "spearman", use = "pairwise.complete.obs")
+          #both nominal: bias-corrected Cramér’s V
+          } else if (is.factor(x) && is.factor(y)) {
+            mat[i, j] <- cramerV(x, y, bias.correct = TRUE)
+            #one nominal and one numeric: Eta coefficient
+            } else if ((is.factor(x) && is.numeric(y) && !is.ordered(x))) {
+              f <- as.factor(x)
+              m <- tapply(y, f, mean) #group means
+              n_g <- tapply(y, f, length) #group sizes
+              mean_total <- mean(y) #overall mean
+              TSS <- sum((y - mean_total)^2) #total sum of squares
+              BSS <- sum(n_g * (m - mean_total)^2) #between-group sum of squares
+              mat[i, j] <- sqrt(BSS / TSS)  #correlation ratio (eta)
+              #one numeric and one nominal: Eta coefficient
+              } else if ((is.numeric(x) && is.factor(y) && !is.ordered(y))) {
+                f <- as.factor(y)
+                m <- tapply(x, f, mean)
+                n_g <- tapply(x, f, length)
+                mean_total <- mean(x)
+                TSS <- sum((x - mean_total)^2)
+                BSS <- sum(n_g * (m - mean_total)^2)
+                mat[i, j] <- sqrt(BSS / TSS)
+                #other cases
+              } else {mat[i, j] <- NA}}}
+  return(round(mat, 4))}
+
+rm(list = setdiff(ls(), c("data_2", "mixed_assoc_matrix"))) #clean environment removing unnecessary objects
+```
+
+```{r}
+data_2_ass <- data_2 %>%
+  #select only numeric variables (exclude character and date/time)
+  select(where(function(x) !is.character(x) & !inherits(x, "POSIXct")))
+
+#compute association matrix
+mat_assoc <- mixed_assoc_matrix(data_2_ass)
+
+#dataframe for HTML rendering (rounded values for display only)
+mat_assoc_df <- as.data.frame(round(mat_assoc, 2))
+
+#highlight values with different levels of association, excluding diagonal
+for (i in seq_len(nrow(mat_assoc_df))) {
+  for (j in seq_len(ncol(mat_assoc_df))) {
+    if (i != j) {
+      val <- mat_assoc[i, j] #association numeric
+      #missing values
+      if (is.na(val)) {mat_assoc_df[i, j] <- cell_spec("NA", color = "black", bold = TRUE)
+      #perfect association (+1 or -1)
+      } else if (abs(val) == 1) {mat_assoc_df[i, j] <- cell_spec(val,
+                                                                 background = "#FFD700", #gold
+                                                                 bold = TRUE)
+      } else {
+        col_fun <- grDevices::colorRampPalette(c("#B2182B", #deep red (-1)
+                                                 "white", #white (0)
+                                                 "#2166AC")) #deep blue (+1)
+        #map [-1, 1] → [1, 101]
+        idx <- round((val + 1) / 2 * 100) + 1
+        mat_assoc_df[i, j] <- cell_spec(round(val, 2),
+                                        background = col_fun(101)[idx],
+                                        color = ifelse(abs(val) > 0.5,
+                                                       "white", "black"))}}}} #text contrast
+#highlight diagonal
+for (i in seq_len(nrow(mat_assoc_df))) {
+  mat_assoc_df[i, i] <- cell_spec(mat_assoc_df[i, i],
+                                  bold = TRUE,
+                                  background = "black")}
+
+#convert to character for HTML rendering
+mat_assoc_df <- mat_assoc_df %>% dplyr::mutate_all(as.character)
+
+mat_assoc_df %>%
+  #generate final output in HTML format
+  kbl("html", escape = FALSE, caption = "Association matrix with items coded as nominal", 
+      align = c("l", "l")) %>% #left-align columns
+  #apply HTML styling to the table
+  kable_styling(bootstrap_options = c("striped",  #alternating row colors for readability
+                                      "bordered", #add table borders
+                                      "condensed"), #reduce spacing for a more compact table
+                font_size = 10, #set table font size
+                fixed_thead = TRUE) %>%  #keep header fixed while scrolling
+  #make the table scrollable when it exceeds a defined height
+  scroll_box(height = "400px")
+
+rm(list = setdiff(ls(), c("data_2"))) #clean environment removing variables not needed anymore
+```
+
+# **Citations**
+
+<!-- https://epale.ec.europa.eu/sites/default/files/apastyle2018.pdf -->
+<!-- https://elearning.uniroma1.it/pluginfile.php/1085344/mod_resource/content/1/20201030_MiniguidaAPA.pdf -->
+
+## **Bibliography**
+
+- Bergsma, W. (2013). A bias-correction for Cramér’s V and Tschuprow’s T. *Journal of the Korean Statistical Society, 42*(3), 323–328. [https://doi.org/10.1016/j.jkss.2012.10.002](https://doi.org/10.1016/j.jkss.2012.10.002)
+- Cohen, J. (1988). *Statistical power analysis for the behavioral sciences* (2nd ed.). Routledge. [https://doi.org/10.4324/9780203771587](https://doi.org/10.4324/9780203771587)
+- Cramér, H. (1946). *Mathematical methods of statistics*. Princeton University Press.
+- Pearson, K. (1895). Note on regression and inheritance in the case of two parents. *Proceedings of the Royal Society of London, 58*(347–352), 240–242. [https://doi.org/10.1098/rspl.1895.0041](https://doi.org/10.1098/rspl.1895.0041)
+- Stevens, S. S. (1946). On the theory of scales of measurement. *Science, 103*(2684), 677–680. [https://doi.org/10.1126/science.103.2684.677](https://doi.org/10.1126/science.103.2684.677)
+
+## **Webliography**
+
+- Open Psychometrics Project. (n.d.). *Big Five personality test data*. Retrieved June 29, 2026, from [http://openpsychometrics.org/_rawdata/BIG5.zip](http://openpsychometrics.org/_rawdata/BIG5.zip)
+- Posit Team. (2026a). *RStudio: Integrated development environment for R* (Version 2026.07.0-daily+75, “Pacific Dogwood”). Posit Software, PBC. [https://posit.co/](https://posit.co/)
+- Posit Team. (2026b). *Quarto: Open-source scientific and technical publishing system* (Version 1.9.38). [https://quarto.org/](https://quarto.org/)
+- R Core Team. (2026). *R: A language and environment for statistical computing* (Version 4.5.3). R Foundation for Statistical Computing. [https://www.R-project.org/](https://www.R-project.org/)
+
+## **R Packages**
+
+```{r, message=FALSE, warning=FALSE}
+#This chunk extracts all currently loaded R packages (excluding base system packages) and attempts to retrieve their official citations using `citation()`. For each package, it captures the citation as text; if no citation is available, it returns a placeholder message. The results are then combined into a single formatted output, producing a readable list of package citations for the current R session.
+
+cat(paste(lapply(
+  #get all currently loaded namespaces in the session
+  loadedNamespaces(),
+  function(pkg) {
+    #try to retrieve the package citation
+    #if an error occurs, return NULL instead of stopping execution
+    cit <- tryCatch(citation(pkg), error = function(e) NULL)
+    #if no citation is available for the package
+    txt <- if (is.null(cit)) {paste0("##", pkg, "\n", "Citation not available\n")
+      } else {
+        #if a citation exists:
+        #- capture.output() converts citation() output into plain text
+        #- paste(..., collapse = "\n") merges it into a single string
+        paste0("##", pkg, "\n", paste(capture.output(cit), collapse = "\n"), "\n")}
+    #return the formatted text block for this package
+    txt}),
+  #combine all package citations with a blank line between them
+  collapse = "\n"))
+```
+
+# <em>**Thank you for your attention from**</em> <br> <em>**Luigi Piccirillo**</em>
+
+```{r end-time, echo=FALSE}
+#print total execution time of the workflow
+cat("Time required to compile the document:",
+  #compute the difference between current time and stored start time in the environment
+  #the result is a difftime object, which must be converted to numeric (seconds)
+  round(as.numeric(Sys.time() - .time_env$start, units = "secs"), 3), "seconds")
+```
