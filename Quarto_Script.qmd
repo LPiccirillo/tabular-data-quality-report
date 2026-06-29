@@ -158,6 +158,18 @@ cat(index, sep = "\n") #print the final structured index
 #This chunk initializes the R environment and sets global options to ensure full reproducibility of the analysis. It defines the CRAN mirror, configures download methods, and enforces IPv4 connectivity to avoid network issues. It also includes utilities to clean the workspace, detach loaded packages, remove existing objects, and reset the random seed, ensuring that the session starts from a completely clean state
 
 #---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
+#DOCUMENT PARAMETERS
+#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
+
+#capture the document parameters (see the YAML `params` block) into session options
+#BEFORE the workspace is cleared below. options() are session settings, not workspace
+#objects, so they are unaffected by rm(list = ls(all.names = TRUE)) and by the later
+#garbage-cleaning chunks. This keeps the dataset path configurable (via render.R, the
+#-P flag, or the YAML defaults) while leaving the clean-slate logic completely untouched.
+options(dq.data_path = params$data_path, dq.data_delim = params$data_delim)
+
+
+#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
 #BEFORE STARTING
 #---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
 
@@ -206,6 +218,8 @@ rm(list = ls(all.names = TRUE))
 #ls(all.names = true) lists all objects, including hidden ones,
 #and rm() deletes them.
 #this ensures that the analysis starts from a clean environment.
+#(the dataset path/separator were already stored in options() above, so they
+#survive this reset and the later garbage-cleaning chunks.)
 
 rm(".Random.seed", envir = .GlobalEnv) #remove any previously defined random seed.
 
@@ -291,6 +305,10 @@ library(janitor) #clean and standardize column names.
 if (!requireNamespace("psych", quietly = TRUE)){install.packages("psych")}
 library(psych) #compute descriptive statistics using describe().
 # packageDescription("psych")
+
+if (!requireNamespace("skimr", quietly = TRUE)){install.packages("skimr")}
+library(skimr) #compact summary statistics via skim().
+# packageDescription("skimr")
 
 if (!requireNamespace("rcompanion", quietly = TRUE)){install.packages("rcompanion")}
 library(rcompanion) #compute Cramér's V.
@@ -833,13 +851,13 @@ The `source` variable was encoded as follows:
 ### **Data import and dataset dimensions**
 
 ```{r}
-#resolve the dataset path and separator from the document parameters (see the YAML header)
-#BEFORE clearing the environment, so they survive the rm() below.
+#read the dataset path and separator from the session options set at the top of the
+#document (the YAML `params` were stashed there so they survive the environment resets).
 #relative paths are interpreted from the R project root via here::here(), which ensures
 #portability across different computers and operating systems; absolute paths (starting with
 #"/" or a Windows drive letter such as "C:/") are used as-is.
-data_path  <- params$data_path
-data_delim <- params$data_delim
+data_path  <- getOption("dq.data_path")
+data_delim <- getOption("dq.data_delim")
 if (!grepl("^(/|[A-Za-z]:)", data_path)) {
   data_path <- here::here(data_path)
 }

@@ -130,6 +130,7 @@ install.packages(c(
   "tidyverse",   # data manipulation, analysis, and visualization
   "janitor",     # clean and standardize column names
   "psych",       # descriptive statistics
+  "skimr",       # compact summary statistics (skim())
   "rcompanion",  # association measures (Cramer's V)
   "knitr",       # dynamic reporting
   "kableExtra",  # HTML tables

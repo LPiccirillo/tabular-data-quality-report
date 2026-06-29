@@ -46,6 +46,7 @@ jobs:
             any::tidyverse
             any::janitor
             any::psych
+            any::skimr
             any::rcompanion
             any::knitr
             any::kableExtra
