@@ -867,12 +867,12 @@ rm(list = setdiff(ls(), c("data_0", "data_path", "data_delim")))
 
 data_0 <- read_delim(data_path,
                      delim = data_delim,
-                    #column separator taken from the `data_delim` parameter (default: tab, i.e. a TSV file)
+                     #column separator taken from the `data_delim` parameter (default: tab, i.e. a TSV file)
                      escape_double = FALSE,
-                    #define how double quotes are handled in the input file
+                     #define how double quotes are handled in the input file
                      trim_ws = TRUE)
-                    #automatically remove leading and trailing whitespace from all values
-                    #this helps avoid formatting issues and incorrect comparisons
+                     #automatically remove leading and trailing whitespace from all values
+                     #this helps avoid formatting issues and incorrect comparisons
 
 #print dataset dimensions
 cat("The dataset has", nrow(data_0), "rows and", ncol(data_0), "columns\n")
@@ -1469,7 +1469,7 @@ mat_assoc_df <- mat_assoc_df %>% dplyr::mutate_all(as.character)
 
 mat_assoc_df %>%
   #generate final output in HTML format
-  kbl("html", escape = FALSE, caption = "Association matrix with items coded as nominal", 
+  kbl("html", escape = FALSE, caption = "Association matrix for mixed data", 
       align = c("l", "l")) %>% #left-align columns
   #apply HTML styling to the table
   kable_styling(bootstrap_options = c("striped",  #alternating row colors for readability
