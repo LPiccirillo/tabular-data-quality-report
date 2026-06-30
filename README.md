@@ -8,6 +8,16 @@ The main goal of the project is to support exploratory data quality analysis bef
 
 ---
 
+## Live HTML Report
+
+A rendered example of the report is available online:
+
+https://lpiccirillo.github.io/tabular-data-quality-report/
+
+The example report is automatically built using GitHub Actions and published to GitHub Pages after each update of the main branch.
+
+---
+
 ## The Dataset
 
 For demonstration and rendering purposes, the script has been applied to a real-world dataset provided by the Open Psychometrics Project (n.d.), which can be downloaded at the following link:
@@ -51,35 +61,23 @@ The dataset is processed through three main stages:
 
 - `data_0`: raw imported dataset  
 - `data_1`: dataset with variables renamed in snake_case format  
-- `data_2`: cleaned dataset after removal of degenerate (constant) variables  
-
-Each stage progressively improves data consistency and prepares the dataset for quality assessment and association analysis.
+- `data_2`: cleaned dataset after removal of degenerate (constant) variables
+  
+Each stage progressively prepares the dataset for subsequent analyses, such as variable transformations, recoding, missing-data handling, exploratory data analysis, data visualization, statistical modelling, and other advanced analytical workflows.
 
 ---
 
 ## Rendering the report
 
-The dataset to analyse is controlled by the `data_path` document parameter (declared in the
-YAML header of `Quarto_Script.qmd`), so **no manual editing of the `.qmd` is required** to run the
-workflow on a new file. Paths are resolved with `here::here()` relative to the project root, which
-keeps the workflow portable across machines and operating systems.
+The dataset to analyse is controlled by the `data_path` document parameter (declared in the YAML header of `Quarto_Script.qmd`), so **no manual editing of the `.qmd` is required** to run the workflow on a new file.
+
+Paths are resolved relative to the project directory, ensuring portability across machines and operating systems. The dataset is imported using `readr::read_delim()` with the column separator specified via the `data_delim` parameter. This makes the workflow suitable for standard delimited files such as CSV, TSV, or similar text-based formats.
+
+If the input dataset is not compatible with `read_delim()` (e.g. Excel, SPSS, Stata, SAS, RDS, Parquet, database files, or other non-delimited formats), it must be converted to a supported format or imported using an appropriate loader before being passed to the pipeline.
 
 There are three ways to render:
 
-1. **Helper script (recommended).** `render.R` auto-detects a single data file
-   (`.csv`/`.tsv`/`.txt`/`.dat`) placed in the project folder and renders the report. Just drop
-   your dataset in the folder and run:
-
-   ```bash
-   Rscript render.R
-   ```
-
-   The column separator is guessed from the file extension (comma for `.csv`, tab otherwise).
-   You can also pass an explicit path to override the auto-detection:
-
-   ```bash
-   Rscript render.R data/my_survey.csv report.html ,
-   ```
+1. **Helper script (recommended).** `render.R` can be executed either by sourcing it in R (e.g. `source("render.R")`) or by running it from the command line (e.g. `Rscript render.R`). The script safely handles rendering by first checking that the required Quarto document exists and exiting gracefully if it does not. It can also optionally accept a dataset path and a column delimiter, allowing flexible execution across different environments.
 
 2. **Quarto CLI.** Pass the parameter directly:
 
@@ -88,17 +86,7 @@ There are three ways to render:
    ```
 
 3. **RStudio.** Edit the `params:` block at the top of `Quarto_Script.qmd` and click *Render*
-   (or press `Ctrl + Shift + K`).
-
-> The example Big Five dataset is **not** stored in the repository. Download it from
-> http://openpsychometrics.org/_rawdata/BIG5.zip and unzip it into `BIG5_data/` so that the file
-> is available at `BIG5_data/BIG5/data.csv` (the default `data_path`).
-
-### Published report
-
-On every push to `main`, a GitHub Actions workflow (`.github/workflows/publish.yml`) downloads the
-example dataset, renders the report, and publishes it to **GitHub Pages**. To enable it, go to
-*Settings then Pages* and set the source to *GitHub Actions*.
+   (or press *Ctrl + Shift + K*).
 
 ### Adapting the report to a new dataset
 
@@ -106,9 +94,10 @@ Beyond the input file, you will typically also want to:
 
 - Update the **Data Dictionary** to reflect the variable names, types, and descriptions of the new dataset
 - Update the **title, subtitle, author(s), and abstract** in the YAML header of the `.qmd`
+- Update the `data_path` and, if necessary, the `data_delim` parameters in the YAML header.
 - Replace the **author signature** section near the end of the document with the correct name(s)
 
-No further modifications are required in the script structure.
+The remainder of the workflow can usually be reused without modification.
 
 ---
 
