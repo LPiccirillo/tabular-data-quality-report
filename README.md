@@ -16,6 +16,67 @@ https://lpiccirillo.github.io/tabular-data-quality-report/
 
 The example report is automatically built using GitHub Actions and published to GitHub Pages after each update of the main branch.
 
+Puoi aggiungere una sezione al **README** come questa, scritta in inglese e con uno stile tipico di GitHub.
+
+---
+
+## Download the Quarto template
+
+To download and open the Quarto template in **RStudio**, follow these steps:
+
+1. Open **RStudio**.
+2. Create a new **R Script** (`File` → `New File` → `R Script`).
+3. Copy and paste the following code into the script.
+4. Run the entire script.
+
+The script will:
+
+- download the latest version of this repository as a ZIP archive;
+- extract it into your current working directory;
+- ask whether to overwrite the existing folder if it has already been downloaded;
+- automatically open the **`Quarto_Script.qmd`** template in the RStudio editor.
+
+```r
+getwd() #display the current working directory
+
+#URL of the repository ZIP file
+url <- "https://github.com/LPiccirillo/tabular-data-quality-report/archive/refs/heads/main.zip"
+
+#local ZIP file name
+zip_file <- "tabular-data-quality-report.zip"
+
+#folder created after extraction
+repo_dir <- "tabular-data-quality-report-main"
+
+if (dir.exists(repo_dir)) {
+  answer <- readline(paste0("The folder '", repo_dir, "' already exists. Do you want to download and overwrite it? (y/n): "))
+  if (tolower(answer) != "y") {message("Download cancelled. Using the existing folder.")
+    } else {unlink(repo_dir, recursive = TRUE)
+      #download the file
+      download.file(url, destfile = zip_file, mode = "wb")
+      #extract the contents into the current directory
+      unzip(zip_file)
+      #delete the ZIP file
+      file.remove(zip_file)
+      message("Repository re-downloaded successfully. The previous version has been overwritten.")}
+  } else {
+    #download the file
+    download.file(url, destfile = zip_file, mode = "wb")
+    #extract the contents into the current directory
+    unzip(zip_file)
+    #delete the ZIP file
+    file.remove(zip_file)
+    message("Repository downloaded successfully.")}
+
+#name of the Quarto template saved in the working directory
+destfile <- "tabular-data-quality-report-main/Quarto_Script.qmd"
+
+#open the Quarto file in the RStudio editor
+file.edit(destfile)
+```
+
+> **Note:** The repository will be downloaded into your current working directory (displayed by `getwd()`). If you want to save it elsewhere, change the working directory before running the script (e.g., using `setwd()` or by creating an RStudio Project).
+
 ---
 
 ## The Dataset
