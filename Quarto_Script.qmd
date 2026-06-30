@@ -127,26 +127,18 @@ include-in-header:
 # **Table of contents**
 
 ```{r, message=FALSE, warning=FALSE}
-file_lines <- readLines("Quarto_Script.qmd") #read the Quarto (.qmd) file as a vector of lines
-
-#extract only heading lines (levels 1 to 5)
-#pattern: lines starting with # to ##### followed by **bold text**
-heading_lines <- grep("^#{1,5}\\s*\\*\\*", file_lines, value = TRUE)
-
-#extract heading level (number of # characters at the start)
-heading_level <- nchar(sub("^(#{1,5}).*", "\\1", heading_lines))
-
-#clean heading text by removing:
-#- leading markdown hashes (#)
-#- surrounding bold markers (** **)
-heading_text <- gsub("^#{1,5}\\s*\\*\\*|\\*\\*$", "", heading_lines)
-
-#build hierarchical index using indentation; each level adds 2 spaces of indentation
-index <- paste0(strrep("  ", heading_level - 1), #indentation based on level
-                "- ", #bullet point
-                heading_text) #clean title text
-
-cat(index, sep = "\n") #print the final structured index
+readLines("Quarto_Script.qmd") |> #read the Quarto document as a character vector
+  (\(x) #anonymous function using the file lines without creating an object
+   grep("^#{1,5}\\s*\\*\\*", #match headings from level 1 to 5 written in bold
+      x, value = TRUE))() |> #return the matching lines instead of their indices
+  (\(h) #anonymous function receiving the extracted heading lines
+    cat(paste0(strrep("  ", #use two spaces for each indentation level
+          nchar(sub("^(#{1,5}).*", #extract the sequence of leading '#' symbols
+                    "\\1", h)) - 1), #level 1 has no indentation
+          "- ", #prefix each heading with a bullet
+        gsub("^#{1,5}\\s*\\*\\*|\\*\\*$", #remove markdown syntax
+          "", h)), #keep only the heading text
+        sep = "\n"))() #print one entry per line
 ```
 
 # **Packages & Setup**
