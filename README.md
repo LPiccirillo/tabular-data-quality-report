@@ -33,46 +33,55 @@ The script will:
 
 - download the latest version of this repository as a ZIP archive;
 - extract it into your current working directory;
-- ask whether to overwrite the existing folder if it has already been downloaded;
+- ask whether to overwrite the existing file if it has already been downloaded;
 - automatically open the **`Quarto_Script.qmd`** template in the RStudio editor.
 
 ```r
-getwd() #display the current working directory
+getwd() #display the current working directory, i.e. the location where the downloaded files will be saved
 
-#URL of the repository ZIP file
-url <- "https://github.com/LPiccirillo/tabular-data-quality-report/archive/refs/heads/main.zip"
+url <- "https://github.com/LPiccirillo/tabular-data-quality-report/archive/refs/heads/main.zip" #URL of the ZIP file containing the GitHub repository
 
-#local ZIP file name
-zip_file <- "tabular-data-quality-report.zip"
+zip_file <- "tabular-data-quality-report.zip" #name assigned locally to the downloaded ZIP file
 
-#folder created after extraction
-repo_dir <- "tabular-data-quality-report-main"
+repo_dir <- "tabular-data-quality-report-main" #name of the folder that will be automatically created after extracting the ZIP file
 
-if (dir.exists(repo_dir)) {
-  answer <- readline(paste0("The folder '", repo_dir, "' already exists. Do you want to download and overwrite it? (y/n): "))
-  if (tolower(answer) != "y") {message("Download cancelled. Using the existing folder.")
-    } else {unlink(repo_dir, recursive = TRUE)
-      #download the file
+file_name <- "Quarto_Script.qmd" #name of the file to check in the working directory
+
+#check whether the Quarto file already exists in the working directory
+if (file.exists(file_name)) {
+  #ask the user whether the existing file should be replaced
+  answer <- readline(paste0("The file '", file_name, "' already exists. Do you want to download a new version and overwrite it? (y/n): "))
+  #if the answer is different from "y", stop the operation
+  if (tolower(answer) != "y") {message("Operation cancelled. The existing file in the working directory will be used.")
+    } else {
+      #delete the existing Quarto file
+      file.remove(file_name)
+      #download the GitHub repository as a ZIP file
       download.file(url, destfile = zip_file, mode = "wb")
-      #extract the contents into the current directory
+      #extract the contents of the ZIP file into the working directory
       unzip(zip_file)
-      #delete the ZIP file
+      #delete the ZIP file after extraction
       file.remove(zip_file)
-      message("Repository re-downloaded successfully. The previous version has been overwritten.")}
+      #display a confirmation message
+      message("The new version of the Quarto template has been downloaded successfully.")}
   } else {
-    #download the file
+    #if the file does not exist, download the repository
     download.file(url, destfile = zip_file, mode = "wb")
-    #extract the contents into the current directory
+    #extract the contents of the ZIP file
     unzip(zip_file)
-    #delete the ZIP file
+    #delete the ZIP file after extraction
     file.remove(zip_file)
-    message("Repository downloaded successfully.")}
+    #display a confirmation message
+    message("The Quarto template has been downloaded successfully.")}
 
-#name of the Quarto template saved in the working directory
-destfile <- "tabular-data-quality-report-main/Quarto_Script.qmd"
+#copy the Quarto file from the extracted repository folder directly into the working directory
+file.copy(from = file.path(repo_dir, "Quarto_Script.qmd"),
+          to = "Quarto_Script.qmd",
+          overwrite = TRUE) #if the file already exists, it will be overwritten
 
-#open the Quarto file in the RStudio editor
-file.edit(destfile)
+unlink(repo_dir, recursive = TRUE) #delete the extracted repository folder since it is no longer needed
+
+file.edit("Quarto_Script.qmd") #open the Quarto file in the working directory using the RStudio editor
 ```
 
 > **Note:** The repository will be downloaded into your current working directory (displayed by `getwd()`). If you want to save it elsewhere, change the working directory before running the script (e.g., using `setwd()` or by creating an RStudio Project).
