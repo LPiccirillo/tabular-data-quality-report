@@ -1508,27 +1508,27 @@ for (i in seq_len(nrow(mat_assoc_df))) {
   for (j in seq_len(ncol(mat_assoc_df))) {
     if (i != j) {
       val <- mat_assoc[i, j] #association numeric
-      #missing values
-      if (is.na(val)) {mat_assoc_df[i, j] <- cell_spec("NA", color = "black", bold = TRUE)
-      #perfect association (+1 or -1)
-      } else if (abs(val) == 1) {mat_assoc_df[i, j] <- cell_spec(val,
-                                                                 background = "#FFD700", #gold
-                                                                 bold = TRUE)
-      } else {
-        col_fun <- grDevices::colorRampPalette(c("#B2182B", #deep red (-1)
-                                                 "white", #white (0)
-                                                 "#2166AC")) #deep blue (+1)
-        #map [-1, 1] → [1, 101]
-        idx <- round((val + 1) / 2 * 100) + 1
-        mat_assoc_df[i, j] <- cell_spec(round(val, 2),
-                                        background = col_fun(101)[idx],
-                                        color = ifelse(abs(val) > 0.5,
-                                                       "white", "black"))}}}} #text contrast
+      #safe check for invalid values
+      if (is.na(val) || is.nan(val) || is.infinite(val)) {
+        mat_assoc_df[i, j] <- cell_spec("NA",color = "black",bold = TRUE)
+        #perfect association (+1 or -1)
+        } else if (abs(val) == 1) {
+          mat_assoc_df[i, j] <- cell_spec(round(val, 2), background = "#FFD700", #gold 
+                                          bold = TRUE)
+          } else {
+            col_fun <- grDevices::colorRampPalette(c("#B2182B", #deep red (-1)
+                                                     "white",   #white (0)
+                                                     "#2166AC")) #deep blue (+1)
+            #map [-1, 1] -> [1, 101]
+            idx <- round((val + 1) / 2 * 100) + 1
+            #safety clamp for index
+            idx <- max(1, min(101, idx))
+            mat_assoc_df[i, j] <- cell_spec(round(val, 2), background = col_fun(101)[idx],
+                                            color = ifelse(abs(val) > 0.5, "white", "black"))}}}} #text contrast
+
 #highlight diagonal
 for (i in seq_len(nrow(mat_assoc_df))) {
-  mat_assoc_df[i, i] <- cell_spec(mat_assoc_df[i, i],
-                                  bold = TRUE,
-                                  background = "black")}
+  mat_assoc_df[i, i] <- cell_spec(mat_assoc_df[i, i], bold = TRUE, background = "black")}
 
 #convert to character for HTML rendering
 mat_assoc_df <- mat_assoc_df %>% dplyr::mutate_all(as.character)
