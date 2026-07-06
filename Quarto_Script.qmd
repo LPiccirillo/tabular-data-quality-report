@@ -1423,6 +1423,80 @@ data_2_ass <- data_2 %>%
   #select only numeric variables (exclude character and date/time)
   select(where(function(x) !is.character(x) & !inherits(x, "POSIXct")))
 
+#identify problematic variable pairs. A pair is flagged as problematic when, after removing NA values, at least one variable has fewer than 2 unique values. This condition breaks chi-square based association measure (no variability -> invalid contingency structure)
+find_problem_pairs <- function(df) {
+  vars <- names(df) #extract variable names
+  problem_pairs <- list() #initialize empty list for storing problematic pairs
+  #iterate over all unique variable combinations (upper triangle of matrix)
+  for (i in 1:(length(vars) - 1)) {
+    for (j in (i + 1):length(vars)) {
+      #build temporary dataset for the pair and remove missing values
+      tmp <- na.omit(data.frame(x = df[[i]],
+                                y = df[[j]]))
+      #check validity of the pair only if data exists
+      if (nrow(tmp) > 0 && (length(unique(tmp$x)) < 2 || length(unique(tmp$y)) < 2)) {
+        #store problematic variable pair
+        problem_pairs[[length(problem_pairs) + 1]] <- c(vars[i], vars[j])}}}
+  return(problem_pairs)} #return list of problematic pairs
+
+#remove problematic variables from dataset. Variables involved in problematic pairs are removed to ensure valid computation of association measures
+remove_problem_vars <- function(df) {
+  problem_pairs <- find_problem_pairs(df) #detect problematic pairs
+  #if no issues are found, return original dataset
+  if (length(problem_pairs) == 0) {
+    cat("No problematic variables to remove.\n")
+    return(df)}
+  #extract variables to remove (here we remove the second variable in each pair)
+  vars_to_remove <- unique(sapply(problem_pairs, function(x) x[2]))
+  cat("Removing problematic variables:\n")
+  print(vars_to_remove)
+  #remove variables from dataset
+  df_clean <- df %>%
+    select(-all_of(vars_to_remove))
+  return(df_clean)}
+
+#visualize problematic variable pairs (HTML tables). Each pair is displayed as a contingency table (frequency matrix) using kableExtra for HTML rendering.
+plot_problem_tables <- function(df) {
+  problem_pairs <- find_problem_pairs(df) #detect problematic pairs
+  #if no problematic pairs exist, stop execution
+  if (length(problem_pairs) == 0) {
+    cat("No problematic variable pairs found.\n")
+    return(invisible(NULL))}
+  #loop over each problematic pair
+  for (pair in problem_pairs) {
+    var1 <- pair[1] #first variable in the pair
+    var2 <- pair[2] #second variable in the pair
+    #keep only complete cases for the selected variables
+    tmp <- na.omit(df[, c(var1, var2)])
+    #skip pairs with insufficient observations
+    if (nrow(tmp) < 2) next
+    #build contingency table (frequency matrix)
+    tab <- table(tmp[[1]], tmp[[2]])
+    #convert table into data frame for HTML rendering
+    tab_df <- as.data.frame.matrix(tab)
+    #generate HTML output table
+    print(kable(tab_df,format = "html",
+                caption = paste("Association table:", var1, "vs", var2)) %>%
+            kable_styling(bootstrap_options = c("striped", "bordered", "condensed"),
+                          font_size = 10,
+                          fixed_thead = TRUE) %>%
+            scroll_box(height = "400px"))}}
+
+#visualize problematic pairs before cleaning
+plot_problem_tables(data_2_ass)
+
+#remove problematic variables
+data_2_ass_clean <- remove_problem_vars(data_2_ass)
+
+#re-check after cleaning
+plot_problem_tables(data_2_ass_clean)
+
+rm(list = setdiff(ls(), c("data_2", 
+                          "data_2_ass_clean",
+                          "mixed_assoc_matrix"))) #clean environment removing unnecessary objects
+```
+
+```{r}
 #compute association matrix
 mat_assoc <- mixed_assoc_matrix(data_2_ass)
 
