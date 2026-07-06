@@ -13,8 +13,8 @@ date-format: long    # Long date format
 
 # ======== DOCUMENT PARAMETERS ========
 params:
-  data_path: "BIG5_data/BIG5/data.csv"  # Dataset to analyse. Relative paths are resolved from the project root; absolute paths are used as-is. Override with: quarto render Quarto_Script.qmd -P data_path:<path> (or via render.R).
-  data_delim: "\t"                       # Column separator of the dataset (default: tab, i.e. TSV).
+  data_path: "BIG5_data/BIG5/data.csv"  # Dataset to analyse. Relative paths are resolved from the project root; absolute paths are used as-is. Override with: quarto render Quarto_Script.qmd -P data_path:<path>
+  data_delim: "\t"                      # Column separator of the dataset (default: tab, i.e. TSV)
 
 # ======== HTML OUTPUT SETTINGS ========
 format:
@@ -243,9 +243,12 @@ cat("\014") #"\014" is the form-feed character interpreted by rstudio as "clear 
 .time_env$start <- Sys.time()
 ```
 
-This chunk configures parallel computing capabilities using multiple CPU cores. It installs and loads the required packages and defines a multisession plan that uses all available cores minus one. This improves computational efficiency for operations that support parallel execution.
-
 ```{r, message=FALSE, warning=FALSE}
+#| code-fold: true 
+#| code-summary: "Parallel processing"
+
+#This chunk configures parallel computing capabilities using multiple CPU cores. It installs and loads the required packages and defines a multisession plan that uses all available cores minus one. This improves computational efficiency for operations that support parallel execution.
+
 #---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
 #PARALLEL PROCESSING
 #---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
@@ -266,9 +269,12 @@ plan(multisession, workers = parallel::detectCores() - 1)
 #preventing the CPU from being fully saturated and leaving resources available for the operating system.
 ```
 
-This chunk installs and loads all necessary packages for data analysis, visualization, statistical computation, and reporting. It includes tools for data manipulation (`tidyverse`), descriptive statistics (`psych`), association measures (`rcompanion`), and HTML reporting (`knitr`, `kableExtra`), ensuring that all required dependencies are available for the workflow.
-
 ```{r, message=FALSE, warning=FALSE}
+#| code-fold: true 
+#| code-summary: "Packages"
+
+#This chunk installs and loads all necessary packages for data analysis, visualization, statistical computation, and reporting. It includes tools for data manipulation (`tidyverse`), descriptive statistics (`psych`), association measures (`rcompanion`), and HTML reporting (`knitr`, `kableExtra`), ensuring that all required dependencies are available for the workflow.
+
 # Import data
 if (!requireNamespace("readr", quietly = TRUE)) {install.packages("readr")}
 library(readr) #import CSV files.
@@ -316,9 +322,15 @@ library(kableExtra) #create and customize HTML tables.
 # packageDescription("kableExtra")
 ```
 
-This chunk prints a detailed report of the computing environment, including operating system, hardware specifications, memory usage, R version, installed tools, and session configuration. It also records random number generator settings and file system information to ensure full reproducibility of the analysis across different machines and sessions.
+<details> 
+<summary>Show complete reproducibility information</summary>
 
 ```{r, message=FALSE, warning=FALSE}
+#| code-fold: true 
+#| code-summary: "Code for reproducibility information"
+
+#This chunk prints a detailed report of the computing environment, including operating system, hardware specifications, memory usage, R version, installed tools, and session configuration. It also records random number generator settings and file system information to ensure full reproducibility of the analysis across different machines and sessions.
+
 cat(" =========================================\n",
     " REPRODUCIBILITY INFORMATION\n",
     "=========================================\n\n",
@@ -693,6 +705,8 @@ cat(" =========================================\n",
     "=========================================\n")
 ```
 
+</details>
+
 # **The dataset**
 
 This template uses a real-world dataset from the OpenPsychometrics project, which contains responses used to compute the Big Five personality traits. The data are freely available and are suitable for demonstrating data cleaning, descriptive statistics, and multivariate analysis workflows.
@@ -843,28 +857,18 @@ The `source` variable was encoded as follows:
 ### **Data import and dataset dimensions**
 
 ```{r}
-#read the dataset path and separator from the session options set at the top of the
-#document (the YAML `params` were stashed there so they survive the environment resets).
-#relative paths are interpreted from the R project root via here::here(), which ensures
-#portability across different computers and operating systems; absolute paths (starting with
-#"/" or a Windows drive letter such as "C:/") are used as-is.
+#read the dataset path and separator from the session options set at the top of the document (the YAML `params` were stashed there so they survive the environment resets). Relative paths are interpreted from the R project root via here::here(), which ensures portability across different computers and operating systems; absolute paths (starting with "/" or a Windows drive letter such as "C:/") are used as-is
 data_path  <- getOption("dq.data_path")
 data_delim <- getOption("dq.data_delim")
-if (!grepl("^(/|[A-Za-z]:)", data_path)) {
-  data_path <- here::here(data_path)
-}
+if (!grepl("^(/|[A-Za-z]:)", data_path)) {data_path <- here::here(data_path)}
 
 #remove all objects from the environment except those that are explicitly needed
 rm(list = setdiff(ls(), c("data_0", "data_path", "data_delim")))
 
 data_0 <- read_delim(data_path,
-                     delim = data_delim,
-                     #column separator taken from the `data_delim` parameter (default: tab, i.e. a TSV file)
-                     escape_double = FALSE,
-                     #define how double quotes are handled in the input file
-                     trim_ws = TRUE)
-                     #automatically remove leading and trailing whitespace from all values
-                     #this helps avoid formatting issues and incorrect comparisons
+                     delim = data_delim, #column separator taken from the `data_delim` parameter (default: tab, i.e. a TSV file)
+                     escape_double = FALSE, #define how double quotes are handled in the input file
+                     trim_ws = TRUE) #automatically remove leading and trailing whitespace from all values; this helps avoid formatting issues and incorrect comparisons
 
 #print dataset dimensions
 cat("The dataset has", nrow(data_0), "rows and", ncol(data_0), "columns\n")
@@ -1498,7 +1502,7 @@ rm(list = setdiff(ls(), c("data_2",
 
 ```{r}
 #compute association matrix
-mat_assoc <- mixed_assoc_matrix(data_2_ass)
+mat_assoc <- mixed_assoc_matrix(data_2_ass_clean)
 
 #dataframe for HTML rendering (rounded values for display only)
 mat_assoc_df <- as.data.frame(round(mat_assoc, 2))
@@ -1571,7 +1575,13 @@ rm(list = setdiff(ls(), c("data_2"))) #clean environment removing variables not 
 
 ## **R Packages**
 
+<details> 
+<summary>Show complete R package citations</summary>
+
 ```{r, message=FALSE, warning=FALSE}
+#| code-fold: true 
+#| code-summary: "Code for R Package citations"
+
 #This chunk extracts all currently loaded R packages (excluding base system packages) and attempts to retrieve their official citations using `citation()`. For each package, it captures the citation as text; if no citation is available, it returns a placeholder message. The results are then combined into a single formatted output, producing a readable list of package citations for the current R session.
 
 cat(paste(lapply(
@@ -1593,6 +1603,8 @@ cat(paste(lapply(
   #combine all package citations with a blank line between them
   collapse = "\n"))
 ```
+
+</details> 
 
 # <em>**Thank you for your attention from**</em> <br> <em>**Luigi Piccirillo**</em>
 
