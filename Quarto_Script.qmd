@@ -6,15 +6,17 @@ author:
   - "Full Name<br><span style='margin-left:1em'>Student ID (optional)<br><span style='margin-left:1em'>Email Address (optional)" # Author 1
   - "Full Name<br><span style='margin-left:1em'>Student ID (optional)<br><span style='margin-left:1em'>Email Address (optional)" # Author 2
 abstract: |
-          To be added
+  This Quarto template provides a reproducible workflow for the automated diagnostic analysis of tabular datasets. It generates a comprehensive exploratory report including data import, data quality assessment, descriptive statistics, missing-value analysis, variable distribution summaries, and association analyses. The template is designed to support rapid preliminary exploration of datasets while promoting transparency, reproducibility, and consistency across analyses. Its parameterized structure allows users to apply the same workflow to different datasets with minimal modifications.
 lang: en             # HTML language
 date: today          # Generation date
 date-format: long    # Long date format
 
 # ======== DOCUMENT PARAMETERS ========
 params:
-  data_path: "BIG5_data/BIG5/data.csv"  # Dataset to analyse. Relative paths are resolved from the project root; absolute paths are used as-is. Override with: quarto render Quarto_Script.qmd -P data_path:<path>
-  data_delim: "\t"                      # Column separator of the dataset (default: tab, i.e. TSV)
+  data_path: "BIG5_data/BIG5/data.csv"   # Dataset to analyse. Relative paths are resolved from the project root; absolute paths are used as-is.
+  data_type: "csv"                       # Supported file types: "csv" (including TSV and other delimited text files) or "excel"
+  data_delim: "\t"                       # Column separator used only when data_type = "csv" (e.g. ",", ";" or "\t")
+  data_sheet: 1                          # Worksheet name or index used only when data_type = "excel"
 
 # ======== HTML OUTPUT SETTINGS ========
 format:
@@ -149,16 +151,16 @@ readLines("Quarto_Script.qmd") |> #read the Quarto document as a character vecto
 
 #This chunk initializes the R environment and sets global options to ensure full reproducibility of the analysis. It defines the CRAN mirror, configures download methods, and enforces IPv4 connectivity to avoid network issues. It also includes utilities to clean the workspace, detach loaded packages, remove existing objects, and reset the random seed, ensuring that the session starts from a completely clean state
 
-#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
-#DOCUMENT PARAMETERS
-#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
 
-#capture the document parameters (see the YAML `params` block) into session options
-#BEFORE the workspace is cleared below. options() are session settings, not workspace
-#objects, so they are unaffected by rm(list = ls(all.names = TRUE)) and by the later
-#garbage-cleaning chunks. This keeps the dataset path configurable (via render.R, the
-#-P flag, or the YAML defaults) while leaving the clean-slate logic completely untouched.
-options(dq.data_path = params$data_path, dq.data_delim = params$data_delim)
+#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
+#DOCUMENT PARAMETERS
+#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
+
+#capture the document parameters (see the YAML `params` block) into session options before the workspace is cleared below. Session options survive environment resets and keep the dataset import configurable.
+options(dq.data_path  = params$data_path,
+        dq.data_type  = params$data_type,
+        dq.data_delim = params$data_delim,
+        dq.data_sheet = params$data_sheet)
 
 
 #---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
@@ -279,6 +281,10 @@ plan(multisession, workers = parallel::detectCores() - 1)
 if (!requireNamespace("readr", quietly = TRUE)) {install.packages("readr")}
 library(readr) #import CSV files.
 # packageDescription("readr")
+
+if (!requireNamespace("readxl", quietly = TRUE)) {install.packages("readxl")}
+library(readxl) #import Excel files.
+# packageDescription("readxl")
 
 # Data manipulation and management
 if (!requireNamespace("tidyverse", quietly = TRUE)) {install.packages("tidyverse")}
@@ -857,18 +863,35 @@ The `source` variable was encoded as follows:
 ### **Data import and dataset dimensions**
 
 ```{r}
-#read the dataset path and separator from the session options set at the top of the document (the YAML `params` were stashed there so they survive the environment resets). Relative paths are interpreted from the R project root via here::here(), which ensures portability across different computers and operating systems; absolute paths (starting with "/" or a Windows drive letter such as "C:/") are used as-is
+#retrieve the dataset import parameters from the session options
 data_path  <- getOption("dq.data_path")
+data_type  <- tolower(getOption("dq.data_type"))
 data_delim <- getOption("dq.data_delim")
+data_sheet <- getOption("dq.data_sheet")
+
+#resolve relative paths from the project root
 if (!grepl("^(/|[A-Za-z]:)", data_path)) {data_path <- here::here(data_path)}
 
-#remove all objects from the environment except those that are explicitly needed
-rm(list = setdiff(ls(), c("data_0", "data_path", "data_delim")))
+#remove all objects from the environment except those explicitly required
+rm(list = setdiff(ls(),
+                  c("data_0",
+                    "data_path",
+                    "data_type",
+                    "data_delim",
+                    "data_sheet")))
 
-data_0 <- read_delim(data_path,
-                     delim = data_delim, #column separator taken from the `data_delim` parameter (default: tab, i.e. a TSV file)
-                     escape_double = FALSE, #define how double quotes are handled in the input file
-                     trim_ws = TRUE) #automatically remove leading and trailing whitespace from all values; this helps avoid formatting issues and incorrect comparisons
+#import the dataset according to the selected file type
+if (data_type == "csv") {
+  #read delimited text files using the specified column separator
+  data_0 <- readr::read_delim(data_path,
+                              delim = data_delim, #column separator (e.g. "," ";" or "\t")
+                              escape_double = FALSE,
+                              trim_ws = TRUE)
+  } else if (data_type == "excel") {
+    #read the selected worksheet from an Excel workbook
+    data_0 <- readxl::read_excel(data_path,
+                                 sheet = data_sheet) #worksheet name or index
+    } else {stop("Unsupported data_type. Use 'csv' or 'excel'.")}
 
 #print dataset dimensions
 cat("The dataset has", nrow(data_0), "rows and", ncol(data_0), "columns\n")
@@ -1372,138 +1395,94 @@ Because the dataset may contain both qualitative and quantitative variables (Ste
 
    The $\eta$ index was computed in R using a custom function that takes as input a categorical vector and a numerical vector. Categories are converted into factors to group the data, and for each group the mean and number of observations are computed, while the overall mean is calculated across all values. The total variance is then computed as the sum of squared deviations from the overall mean, and the explained variance is obtained by summing, for each group, the product of group size and squared deviation between group mean and overall mean. The ratio between explained and total variance yields $\eta^2$, whose square root gives the $\eta$ coefficient, which is finally returned as the function output.
 
-
 ```{r}
 #mixed association matrix (Pearson, Spearman, Eta, and Cramér’s V)
 mixed_assoc_matrix <- function(df) {
+  #extract variable names
   vars <- names(df)
+  #number of variables
   n <- length(vars)
+  #initialize empty association matrix filled with NA values
   mat <- matrix(NA, n, n)
+  #assign variable names to rows and columns
   colnames(mat) <- rownames(mat) <- vars
-  
+  #loop over all variable pairs
   for (i in 1:n) {
     for (j in 1:n) {
-      x <- df[[i]]
-      y <- df[[j]]
-      #both numeric: Pearson correlation
-      if (is.numeric(x) && is.numeric(y)) {
-        mat[i, j] <- cor(x, y, method = "pearson", use = "pairwise.complete.obs")
-      #both ordinal: Spearman correlation
-      } else if (is.ordered(x) && is.ordered(y)) {
-        mat[i, j] <- cor(as.numeric(x), as.numeric(y), method = "spearman", use = "pairwise.complete.obs")
-        #one numeric and one ordinal: Spearman correlation
-        } else if ((is.ordered(x) && is.numeric(y)) || (is.numeric(x) && is.ordered(y))) {
-          mat[i, j] <- cor(as.numeric(x), as.numeric(y), method = "spearman", use = "pairwise.complete.obs")
-          #both nominal: bias-corrected Cramér’s V
-          } else if (is.factor(x) && is.factor(y)) {
-            mat[i, j] <- cramerV(x, y, bias.correct = TRUE)
-            #one nominal and one numeric: Eta coefficient
-            } else if ((is.factor(x) && is.numeric(y) && !is.ordered(x))) {
-              f <- as.factor(x)
-              m <- tapply(y, f, mean) #group means
-              n_g <- tapply(y, f, length) #group sizes
-              mean_total <- mean(y) #overall mean
-              TSS <- sum((y - mean_total)^2) #total sum of squares
-              BSS <- sum(n_g * (m - mean_total)^2) #between-group sum of squares
-              mat[i, j] <- sqrt(BSS / TSS)  #correlation ratio (eta)
-              #one numeric and one nominal: Eta coefficient
-              } else if ((is.numeric(x) && is.factor(y) && !is.ordered(y))) {
-                f <- as.factor(y)
-                m <- tapply(x, f, mean)
-                n_g <- tapply(x, f, length)
-                mean_total <- mean(x)
-                TSS <- sum((x - mean_total)^2)
-                BSS <- sum(n_g * (m - mean_total)^2)
-                mat[i, j] <- sqrt(BSS / TSS)
-                #other cases
-              } else {mat[i, j] <- NA}}}
-  return(round(mat, 4))}
+      #try to compute the association measure; if an error occurs, return NA instead of stopping the function
+      mat[i, j] <- tryCatch({
+        #extract the two variables
+        x <- df[[i]]
+        y <- df[[j]]
+        #both variables are numeric: use Pearson correlation
+        if (is.numeric(x) && is.numeric(y)) {
+          cor(x, y, 
+              method = "pearson",
+              use = "pairwise.complete.obs")
+          #both variables are ordinal: use Spearman correlation
+          } else if (is.ordered(x) && is.ordered(y)) {
+            cor(as.numeric(x), as.numeric(y),
+                method = "spearman",
+                use = "pairwise.complete.obs")
+            #one variable is numeric and the other is ordinal: convert the ordinal variable to numeric ranks and use Spearman correlation
+            } else if ((is.ordered(x) && is.numeric(y)) ||
+                       (is.numeric(x) && is.ordered(y))) {
+              cor(as.numeric(x), as.numeric(y),
+                  method = "spearman",
+                  use = "pairwise.complete.obs")
+              #both variables are nominal factors: compute bias-corrected Cramér's V
+              } else if (is.factor(x) && is.factor(y)) {
+                cramerV(x, y, bias.correct = TRUE)
+                #nominal predictor and numeric response: compute the Eta coefficient (correlation ratio)
+                } else if (is.factor(x) && !is.ordered(x) && is.numeric(y)) {
+                  #ensure the grouping variable is a factor
+                  f <- factor(x)
+                  #compute group means
+                  m <- tapply(y, f, mean, na.rm = TRUE)
+                  #compute group sample sizes
+                  n_g <- tapply(y, f, function(z) sum(!is.na(z)))
+                  #compute overall mean
+                  mean_total <- mean(y, na.rm = TRUE)
+                  #total sum of squares
+                  TSS <- sum((y - mean_total)^2, na.rm = TRUE)
+                  #between-group sum of squares
+                  BSS <- sum(n_g * (m - mean_total)^2)
+                  #Eta coefficient
+                  sqrt(BSS / TSS)
+                  #numeric predictor and nominal response: same Eta computation with variables reversed
+                  } else if (is.numeric(x) && is.factor(y) && !is.ordered(y)) {
+                    f <- factor(y)
+                    m <- tapply(x, f, mean, na.rm = TRUE)
+                    n_g <- tapply(x, f, function(z) sum(!is.na(z)))
+                    mean_total <- mean(x, na.rm = TRUE)
+                    TSS <- sum((x - mean_total)^2, na.rm = TRUE)
+                    BSS <- sum(n_g * (m - mean_total)^2)
+                    sqrt(BSS / TSS)
+                    #all other variable type combinations are not supported
+                    } else {NA}
+        #if any computation fails (e.g., constant variable, invalid contingency table), store NA and continue with the remaining variable pairs
+        }, error = function(e) NA)}}
+  #round association coefficients to four decimal places
+  round(mat, 4)}
 
 rm(list = setdiff(ls(), c("data_2", "mixed_assoc_matrix"))) #clean environment removing unnecessary objects
 ```
 
 ```{r}
 data_2_ass <- data_2 %>%
-  #select only numeric variables (exclude character and date/time)
-  select(where(function(x) !is.character(x) & !inherits(x, "POSIXct")))
+  #select variables compatible with the association measures
+  #exclude unsupported data types:
+  #- character variables
+  #- date/time variables (Date, POSIXct, POSIXlt)
+  #- time interval objects (difftime)
+  #- list columns
+  select(where(function(x)
+    !is.character(x) &&
+    !inherits(x, c("Date", "POSIXt", "difftime")) &&
+    !is.list(x)))
 
-#identify problematic variable pairs. A pair is flagged as problematic when, after removing NA values, at least one variable has fewer than 2 unique values. This condition breaks chi-square based association measure (no variability -> invalid contingency structure)
-find_problem_pairs <- function(df) {
-  vars <- names(df) #extract variable names
-  problem_pairs <- list() #initialize empty list for storing problematic pairs
-  #iterate over all unique variable combinations (upper triangle of matrix)
-  for (i in 1:(length(vars) - 1)) {
-    for (j in (i + 1):length(vars)) {
-      #build temporary dataset for the pair and remove missing values
-      tmp <- na.omit(data.frame(x = df[[i]],
-                                y = df[[j]]))
-      #check validity of the pair only if data exists
-      if (nrow(tmp) > 0 && (length(unique(tmp$x)) < 2 || length(unique(tmp$y)) < 2)) {
-        #store problematic variable pair
-        problem_pairs[[length(problem_pairs) + 1]] <- c(vars[i], vars[j])}}}
-  return(problem_pairs)} #return list of problematic pairs
-
-#remove problematic variables from dataset. Variables involved in problematic pairs are removed to ensure valid computation of association measures
-remove_problem_vars <- function(df) {
-  problem_pairs <- find_problem_pairs(df) #detect problematic pairs
-  #if no issues are found, return original dataset
-  if (length(problem_pairs) == 0) {
-    cat("No problematic variables to remove.\n")
-    return(df)}
-  #extract variables to remove (here we remove the second variable in each pair)
-  vars_to_remove <- unique(sapply(problem_pairs, function(x) x[2]))
-  cat("Removing problematic variables:\n")
-  print(vars_to_remove)
-  #remove variables from dataset
-  df_clean <- df %>%
-    select(-all_of(vars_to_remove))
-  return(df_clean)}
-
-#visualize problematic variable pairs
-plot_problem_tables <- function(df) {
-  problem_pairs <- find_problem_pairs(df)
-  #if no problematic pairs exist
-  if (length(problem_pairs) == 0) {
-    cat("No problematic variable pairs found.\n")
-    return(invisible(NULL))}
-  #loop over each problematic pair
-  for (pair in problem_pairs) {
-    var1 <- pair[1]
-    var2 <- pair[2]
-    #keep only complete cases
-    tmp <- na.omit(df[, c(var1, var2)])
-    #skip pairs with insufficient observations
-    if (nrow(tmp) < 2) next
-    #build contingency table
-    tab <- table(tmp[[1]], tmp[[2]])
-    #print title
-    cat("\n")
-    cat("======================================================================\n")
-    cat("Association table:", var1, "vs", var2, "\n")
-    cat("======================================================================\n\n")
-    #print contingency table
-    print(tab)
-    cat("\n")}
-  #stop execution and return NULL invisibly
-  return(invisible(NULL))}
-
-#visualize problematic pairs before cleaning
-plot_problem_tables(data_2_ass)
-
-#remove problematic variables
-data_2_ass_clean <- remove_problem_vars(data_2_ass)
-
-#re-check after cleaning
-plot_problem_tables(data_2_ass_clean)
-
-rm(list = setdiff(ls(), c("data_2", 
-                          "data_2_ass_clean",
-                          "mixed_assoc_matrix"))) #clean environment removing unnecessary objects
-```
-
-```{r}
 #compute association matrix
-mat_assoc <- mixed_assoc_matrix(data_2_ass_clean)
+mat_assoc <- mixed_assoc_matrix(data_2_ass)
 
 #dataframe for HTML rendering (rounded values for display only)
 mat_assoc_df <- as.data.frame(round(mat_assoc, 2))
