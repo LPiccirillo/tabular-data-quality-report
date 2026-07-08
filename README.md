@@ -96,6 +96,31 @@ This dataset contains responses from a Big Five personality questionnaire and is
 
 ---
 
+## Project Structure
+
+```
+.
+├── .github/
+│   └── workflows/
+│       └── publish.yml                   # GitHub Actions workflow for automatic Quarto rendering and publication
+│
+├── .gitattributes                        # Git attributes configuration
+│
+├── .gitignore                            # Ignored files (Quarto outputs, temporary files)
+│
+├── Quarto_Script.qmd                     # Main Quarto template for automated data quality assessment and exploratory analysis
+│
+├── render.R                              # Helper script for rendering the Quarto report
+│
+├── Quarto_Template.Rproj                 # RStudio Project file
+│
+├── LICENSE_GPLv3                         # GNU General Public License v3.0
+│
+└── README.md                             # Documentation, installation instructions, and usage guide
+```
+
+---
+
 ## Script Structure
 
 The script is organized into the following sections:
