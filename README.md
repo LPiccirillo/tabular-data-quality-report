@@ -16,8 +16,6 @@ https://lpiccirillo.github.io/tabular-data-quality-report/
 
 The example report is automatically built using GitHub Actions and published to GitHub Pages after each update of the main branch.
 
-Puoi aggiungere una sezione al **README** come questa, scritta in inglese e con uno stile tipico di GitHub.
-
 ---
 
 ## Download the Quarto template
@@ -98,7 +96,7 @@ This dataset contains responses from a Big Five personality questionnaire and is
 
 ---
 
-## Project Structure
+## Script Structure
 
 The script is organized into the following sections:
 
@@ -132,39 +130,70 @@ The dataset is processed through three main stages:
 - `data_0`: raw imported dataset  
 - `data_1`: dataset with variables renamed in snake_case format  
 - `data_2`: cleaned dataset after removal of degenerate (constant) variables
-  
-Each stage progressively prepares the dataset for subsequent analyses, such as variable transformations, recoding, missing-data handling, exploratory data analysis, data visualization, statistical modelling, and other advanced analytical workflows.
+
+Each stage progressively prepares the dataset for subsequent analyses, such as exploratory data analysis, data visualization, descriptive summaries, and statistical assessments of variable relationships.
 
 ---
 
 ## Rendering the report
 
-The dataset to analyse is controlled by the `data_path` document parameter (declared in the YAML header of `Quarto_Script.qmd`), so **no manual editing of the `.qmd` is required** to run the workflow on a new file.
+The dataset to analyse is controlled by the parameters declared in the YAML header of `Quarto_Script.qmd`, so **no manual editing of the `.qmd` is required** to run the workflow on a new file.
 
-Paths are resolved relative to the project directory, ensuring portability across machines and operating systems. The dataset is imported using `readr::read_delim()` with the column separator specified via the `data_delim` parameter. This makes the workflow suitable for standard delimited files such as CSV, TSV, or similar text-based formats.
+The dataset import is configured through the following parameters:
 
-If the input dataset is not compatible with `read_delim()` (e.g. Excel, SPSS, Stata, SAS, RDS, Parquet, database files, or other non-delimited formats), it must be converted to a supported format or imported using an appropriate loader before being passed to the pipeline.
+- `data_path`: location of the dataset
+- `data_type`: input file format (`csv` or `excel`)
+- `data_delim`: column separator used for delimited text files
+- `data_sheet`: worksheet name or index used for Excel files
+
+Paths are resolved relative to the project directory, ensuring portability across machines and operating systems.
+
+The workflow supports both delimited text files (e.g. CSV, TSV) and Excel workbooks.
+
+For delimited text files, the import relies on `readr::read_delim()` and the column separator is controlled through the `data_delim` parameter.
+
+For Excel files, the import relies on `readxl::read_excel()` and the worksheet is selected through the `data_sheet` parameter.
 
 There are three ways to render:
 
-1. **Helper script (recommended).** `render.R` can be executed either by sourcing it in R (e.g. `source("render.R")`) or by running it from the command line (e.g. `Rscript render.R`). The script safely handles rendering by first checking that the required Quarto document exists and exiting gracefully if it does not. It can also optionally accept a dataset path and a column delimiter, allowing flexible execution across different environments.
+1. **Helper script (recommended).** `render.R` can be executed either by sourcing it in R (e.g. `source("render.R")`) or by running it from the command line (e.g. `Rscript render.R`). The script safely handles rendering by first checking that the required Quarto document exists and exiting gracefully if it does not. It can also optionally accept dataset path, file type, delimiter, and Excel sheet parameters.
 
-2. **Quarto CLI.** Pass the parameter directly:
+2. **Quarto CLI.** Pass the parameters directly:
+
+   CSV example:
 
    ```bash
-   quarto render Quarto_Script.qmd -P data_path:data/my_survey.csv -P data_delim:,
+   quarto render Quarto_Script.qmd \
+   -P data_path:data/my_survey.csv \
+   -P data_type:csv \
+   -P data_delim:,
+   ```
+
+   Excel example:
+
+   ```bash
+   quarto render Quarto_Script.qmd \
+   -P data_path:data/my_survey.xlsx \
+   -P data_type:excel \
+   -P data_sheet:Sheet1
    ```
 
 3. **RStudio.** Edit the `params:` block at the top of `Quarto_Script.qmd` and click *Render*
    (or press *Ctrl + Shift + K*).
 
-### Adapting the report to a new dataset
+---
+
+## Adapting the report to a new dataset
 
 Beyond the input file, you will typically also want to:
 
-- Update the **Data Dictionary** to reflect the variable names, types, and descriptions of the new dataset
 - Update the **title, subtitle, author(s), and abstract** in the YAML header of the `.qmd`
-- Update the `data_path` and, if necessary, the `data_delim` parameters in the YAML header.
+- Update the dataset import parameters in the YAML header:
+  - `data_path` to specify the location of the new dataset
+  - `data_type` to indicate the file format (`csv` or `excel`)
+  - `data_delim` when importing delimited text files (`csv`, `tsv`, etc.) to specify the column separator
+  - `data_sheet` when importing Excel files to specify the worksheet name or index
+- Update the **Data Dictionary** to reflect the variable names, types, and descriptions of the new dataset
 - Replace the **author signature** section near the end of the document with the correct name(s)
 
 The remainder of the workflow can usually be reused without modification.
@@ -180,25 +209,28 @@ The workflow requires:
 
 ### R packages
 
-The script installs any missing packages automatically on first run. To install them up front:
+The workflow automatically checks for and installs missing R packages during the first execution. No manual installation is required in most cases.
+
+The main dependencies used by the report are:
 
 ```r
-install.packages(c(
-  "furrr",       # parallel iteration (with the parallel base package)
-  "readr",       # import delimited files
+c(
+  "furrr",       # parallel execution with future-based workflows
+  "readr",       # import of delimited text files
+  "readxl",      # import of Excel files
   "tidyverse",   # data manipulation, analysis, and visualization
   "janitor",     # clean and standardize column names
   "psych",       # descriptive statistics
-  "skimr",       # compact summary statistics (skim())
-  "rcompanion",  # association measures (Cramer's V)
+  "skimr",       # compact summary statistics
+  "rcompanion",  # association measures (e.g., Cramér's V)
   "knitr",       # dynamic reporting
-  "kableExtra",  # HTML tables
-  "here",        # project-relative paths
-  "quarto"       # render the document from R (used by render.R)
-))
+  "kableExtra",  # formatted HTML tables
+  "here",        # project-relative file paths
+  "quarto"       # rendering the document from R
+)
 ```
 
-All software is used under their respective licenses. See the Citations section of the report for full bibliographic details.
+All software is used under their respective licenses. See the **Citations** section of the report for full bibliographic details.
 
 ---
 
