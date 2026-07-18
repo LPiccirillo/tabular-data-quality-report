@@ -29,6 +29,7 @@ format:
     toc-depth: 5              # Include headings up to level 5 in the TOC
     code-tools: true          # Add the "Show Source" button for code chunks
     code-fold: true           # Make code chunks collapsible
+    fig-cap: true             # Enable figure captions below plots and images
 
 # ======== CHUNK EXECUTION OPTIONS ========
 execute:
@@ -41,86 +42,292 @@ include-in-header:
   - text: |
       <style>
 
-      /* ==============================================
-         CUSTOM TABLE OF CONTENTS
-         ============================================== */
+      /* ---------- GLOBAL DOCUMENT STYLE ----------
+         Base typography and general appearance.
+         Defines font family, spacing, colours,
+         links and default visual consistency.
+         ------------------------------------------ */
+      body{
+        font-family:Georgia,"Times New Roman",serif; /* Academic serif font */
+        line-height:1.6;                             /* Improve text readability */
+        color:#222;                                  /* Soft black text colour */
+        margin:50px 0 0;}                            /* Top spacing below header */
 
-      #toc, #contents {
-          position: relative;      /* Remove floating or side positioning */
-          display: block;          /* Display the TOC as a standard block */
-          margin: 20px auto 40px auto; /* Top and bottom margins */
-          padding: 10px;           /* Inner padding */
-          background-color: #f0f8ff;  /* Light background color */
-          border-radius: 5px;      /* Rounded corners */
-          width: 90%;              /* TOC width */
-          box-sizing: border-box;  /* Include padding and border in total width */
-      }
+      /* ---------- LINKS ----------
+         Consistent hyperlink colour scheme.
+         ------------------------------------------ */
+      a,
+      .toc a{
+        color:#004a99;              /* Professional blue links */
+        text-decoration:none;}      /* Remove default underline */
+      a:hover,
+      .toc a:hover{
+        color:#002b7f;              /* Darker blue on hover */
+        text-decoration:underline;} /* Visual feedback */
 
-      .toc {
-          padding: 10px;
-          background-color: #f0f8ff; /* Background color for the internal TOC */
-          border-radius: 5px;
-      }
+      /* ---------- GLOBAL ROUNDED CORNERS ----------
+         Apply a consistent rounded style to
+         interface elements and containers.
+         ------------------------------------------ */
+      *{border-radius:5px;}
+      /* Avoid rounded corners on textual elements
+         to preserve an academic document style. */
+      p,
+      h1,h2,h3,h4,h5,h6{border-radius:0;}
 
-      .toc a {
-          text-decoration: none;  /* Remove link underline */
-          color: #007bff;         /* Blue links */
-      }
-
-      .toc a:hover {
-          text-decoration: underline; /* Underline links on hover */
-      }
-
-
-      /* ==============================================
-         DOCUMENT BODY
-         ============================================== */
-
-      body {
-          font-family: Arial, sans-serif; /* Main readable font */
-          line-height: 1.6;               /* Line spacing */
-          margin: 0;                      /* Remove outer margins */
-          padding: 0;                     /* Remove outer padding */
-          margin-top: 50px;               /* Space between TOC and document content */
-      }
-
-      a {
-          text-decoration: none;          /* Remove link underline */
-          color: #007bff;                 /* Blue links */
-      }
-
-      a:hover {
-          text-decoration: underline;     /* Underline links on hover */
-      }
+      /* ---------- PARAGRAPH ALIGNMENT ----------
+         Justified text for a report-like layout.
+         ------------------------------------------ */
+      p{text-align:justify;}
 
 
-      /* ==============================================
-         ESSENTIAL FIX FOR R OUTPUT
-         Preserve alignment of lm(), summary(), tables, etc.
-         ============================================== */
+      /* ---------- CONTENT WIDTH ----------
+         Controls the maximum width of the main
+         document area for better readability.
+         ------------------------------------------ */
+      main{max-width:900px;} /* Limit text width */
 
+      /* ---------- TABLE OF CONTENTS ----------
+         Professional navigation box styling.
+         Improves visibility and hierarchy of
+         the document structure.
+         ------------------------------------------ */
+      #toc,
+      #contents{
+        position:relative;                     /* Keep element in normal flow */
+        display:block;                         /* Standard block layout */
+        width:90%;                             /* Leave margins around the box */
+        margin:20px auto 40px;                 /* Vertical spacing */
+        padding:10px;                          /* Internal spacing */
+        background:#fafbfc;                    /* Neutral background */
+        border:1px solid #d8dee9;              /* Light grey border */
+        border-left:5px solid #002b7f;         /* Main colour accent */
+        box-shadow:0 2px 6px rgba(0,0,0,.05);} /* Subtle depth effect */
+      #TOC{z-index:1;}                         /* Keep TOC above overlapping elements */
+      .toc{
+        padding:10px;                          /* Inner spacing */
+        background:transparent;}               /* Avoid duplicated background */
+      .toc ul{list-style:none;}                /* Remove default bullets */
+      .toc li{
+        border-left:2px solid #d9d9d9;         /* Visual hierarchy indicator */
+        padding-left:8px;}                     /* Distance from separator */
+
+      /* ---------- CODE ----------
+         Styling for source code, console output
+         and computational results.
+         Preserves formatting and horizontal
+         scrolling for long lines.
+         ------------------------------------------ */
+      pre,
       pre code,
       code.sourceCode,
-      pre,
       .cell-output,
       .cell-output pre,
-      .cell-output code {
-          white-space: pre !important;     /* Preserve all spaces exactly as in the R console */
-          word-break: keep-all !important; /* Prevent automatic word breaking */
-          overflow-x: auto;                /* Enable horizontal scrolling when needed */
-          font-family: monospace;          /* Monospaced font (as in RStudio) */
-          display: block;                  /* Each code block occupies a full line */
-      }
+      .cell-output code{
+        font-family:monospace;             /* Code-specific font */
+        display:block;                     /* Preserve block formatting */
+        white-space:pre!important;         /* Keep original spacing */
+        word-break:keep-all!important;     /* Avoid breaking code lines */
+        overflow-x:auto;                   /* Allow horizontal scrolling */
+        max-width:100%;}                   /* Prevent container overflow */
+      pre{
+        background:#fbfbfc;                /* Light code background */
+        border:1px solid #d9d9d9;          /* Subtle border */
+        border-left:4px solid #0056b3;     /* Blue visual accent */
+        padding:15px;}                     /* Internal spacing */
+      code:not(.sourceCode):not(pre code){
+        display:inline;                    /* Keep inline code in text */
+        white-space:normal!important;      /* Allow text wrapping */
+        word-wrap:break-word!important;    /* Prevent overflow */
+        background:#eef3f8;                /* Highlight inline code */
+        color:#002b7f;                     /* Match document palette */
+        border:1px solid #d9d9d9;          /* Definition border */
+        padding:2px 5px;}                  /* Compact padding */
 
-      /* ==============================================
-         INLINE CODE
-         Allow line wrapping inside text
-         ============================================== */
+      /* ---------- ABSTRACT ----------
+         Academic summary box styling.
+         Highlights introductory information
+         while maintaining document consistency.
+         ------------------------------------------ */
+      .abstract{
+        background:#f8f9fb;                    /* Neutral background */
+        border-left:6px solid #002b7f;         /* Main theme accent */
+        padding:18px 22px;                     /* Internal spacing */
+        margin:25px 0;                         /* Separation from sections */
+        color:#333;                            /* Softer text colour */
+        line-height:1.7;                       /* Improve readability */
+        text-align:justify;                    /* Academic alignment */
+        box-shadow:0 2px 5px rgba(0,0,0,.05);} /* Subtle elevation */
+      .abstract-title{
+        color:#002b7f;                         /* Match heading colour */
+        font-weight:700;                       /* Emphasize title */
+        margin-bottom:10px;                    /* Space below title */
+        text-transform:uppercase;              /* Editorial style */
+        letter-spacing:.05em;}                 /* Improve readability */
 
-      code:not(.sourceCode):not(pre code) {
-          white-space: normal !important;   /* Normal spacing */
-          word-wrap: break-word !important; /* Wrap long lines when necessary */
-          display: inline;                  /* Keep inline within text */
+      /* ---------- HEADINGS ----------
+         Hierarchical styling for document sections.
+         Uses colour, weight and separators to
+         improve readability and navigation.
+         ------------------------------------------ */
+      h1{
+        color:#002b7f;                    /* Main dark blue */
+        padding-bottom:.3em;              /* Space before separator */
+        margin-top:1.2em;                 /* Separation from previous content */
+        font-weight:700;                  /* Strong emphasis */
+        border-bottom:3px solid #002b7f;} /* Main section divider */
+      h2{
+        color:#004a99;                    /* Medium dark blue */
+        font-weight:700;                  /* Strong subsection title */
+        border-bottom:1px solid #0056b3;  /* Subtle separator */
+        padding-bottom:5px;}              /* Spacing below title */
+      h3{
+        color:#0056b3;                    /* Secondary blue */
+        font-weight:600;                  /* Medium emphasis */
+        border-left:4px solid #0056b3;    /* Visual section marker */
+        padding-left:10px;}               /* Space from marker */
+      h4{color:#2f75b5;}                  /* Light professional blue */
+      h5{color:#4f81bd;}                  /* Soft accent blue */
+      h6{color:#7fa9d8;}                  /* Light blue for minor headings */
+
+      /* ---------- TABLES ----------
+         Professional formatting for statistical
+         tables and generated outputs.
+         ------------------------------------------ */
+      table{
+        width:100%;                 /* Use available width */
+        border-collapse:collapse;}  /* Merge table borders */
+      caption{
+        caption-side:top;           /* Title above the table */
+        color:#002b7f;              /* Main theme colour */
+        font-weight:700;            /* Highlight table title */
+        text-align:left;            /* Align with table content */
+        padding-bottom:10px;}       /* Space below caption */
+      th{
+        background:#002b7f;         /* Header background */
+        color:white;                /* High contrast text */
+        padding:10px;               /* Cell spacing */
+        border:1px solid #d9d9d9;}  /* Table definition */
+      td{
+        padding:8px 10px;           /* Comfortable reading space */
+        border:1px solid #d9d9d9;}  /* Cell separation */
+      tr:nth-child(even){
+        background:#f7f9fb;}        /* Alternate row shading */
+      tr:hover{background:#eef3f8;} /* Highlight active row */
+
+      /* ---------- FIGURES ----------
+         Image and caption styling for plots,
+         diagrams and generated graphics.
+         ------------------------------------------ */
+      figure{
+        margin:30px auto;                      /* Vertical spacing */
+        text-align:center;                     /* Center figure content */
+        max-width:100%;}                       /* Prevent overflow */
+      figure img,
+      img{
+        max-width:95%;                         /* Keep margins around images */
+        height:auto;                           /* Preserve proportions */
+        border:1px solid #d9d9d9;              /* Subtle frame */
+        padding:4px;                           /* Space around image */
+        background:white;                      /* Clean background */
+        box-shadow:0 1px 3px rgba(0,0,0,.08);} /* Light depth effect */
+      figcaption,
+      .figure-caption{
+        color:#666;                            /* Secondary text colour */
+        font-style:italic;                     /* Caption style */
+        text-align:center;                     /* Center caption */
+        font-size:.9rem;                       /* Smaller than body text */
+        margin-top:8px;}                       /* Separation from image */
+
+      /* ---------- MATH ----------
+         Highlight mathematical expressions
+         using the document accent colour.
+         ------------------------------------------ */
+      .math,
+      mjx-container[jax="CHTML"],
+      mjx-container[display="true"]{
+        color:#7a1f2b;}       /* Bordeaux emphasis colour */
+      .math{overflow-x:auto;} /* Support long equations */
+
+      /* ---------- CALLOUTS ----------
+         Harmonize Quarto callout boxes with
+         the document colour palette.
+         ------------------------------------------ */
+      .callout{border-left-width:5px;}          /* Accent side indicator */
+      .callout-note,
+      .callout-tip{background:#f8f9fb;}         /* Neutral background */
+      .callout-note{border-left-color:#0056b3;} /* Blue note accent */
+      .callout-tip{border-left-color:#4f81bd;}  /* Lighter blue accent */
+      .callout-warning{
+        border-left-color:#b8860b;              /* Warning colour */
+        background:#fffaf0;}                    /* Warm warning background */
+
+      /* ---------- METADATA ----------
+         Styling for title information,
+         author data and document details.
+         ------------------------------------------ */
+      .title,
+      .quarto-title-meta-heading{
+        color:#002b7f;            /* Main document colour */
+        font-weight:700;}         /* Emphasized metadata */
+      .subtitle,
+      .quarto-title-meta{
+        color:#666;               /* Secondary information */
+        font-style:italic;}       /* Distinguish metadata */
+
+      /* ---------- OTHER ----------
+         Additional document elements:
+         separators, lists, references,
+         quotations and form controls.
+         ------------------------------------------ */
+      hr{
+        border:none;                   /* Remove default rule */
+        border-top:2px solid #002b7f;  /* Main colour separator */
+        margin:2em 0;}                 /* Vertical spacing */
+      ul,
+      ol{margin-bottom:1em;}           /* Space after lists */
+      li{margin-bottom:.35em;}         /* Improve list readability */
+      .footnotes{
+        color:#666;                    /* Secondary text colour */
+        font-size:.9rem;               /* Smaller footnote text */
+        border-top:1px solid #d9d9d9;} /* Separation from content */
+      blockquote{
+        background:#f8f9fb;            /* Neutral background */
+        border-left:5px solid #0056b3; /* Blue quotation marker */
+        padding:12px 18px;             /* Internal spacing */
+        color:#555;}                   /* Softer text colour */
+      input,
+      select{
+        border:1px solid #d9d9d9;      /* Light form border */
+        padding:6px;}                  /* Comfortable input spacing */
+
+      /* ---------- MOBILE ----------
+         Responsive adjustments for small screens.
+         Improves readability and prevents
+         overflow on mobile devices.
+         ------------------------------------------ */
+      @media(max-width:768px){
+        body{
+          font-size:15px;           /* Slightly smaller text */
+          margin-top:20px;          /* Reduce top spacing */
+          padding:0 12px;}          /* Add side margins */
+        main{max-width:100%;}       /* Use full screen width */
+        #toc,
+        #contents{
+          width:100%;               /* Expand TOC on mobile */
+          margin:15px 0 25px;}      /* Adjust spacing */
+        #TOC{position:relative;}    /* Preserve normal layout */
+        p{text-align:left;}         /* Improve mobile reading */
+        h1{font-size:1.7rem;}       /* Scale main headings */
+        h2{font-size:1.35rem;}      /* Scale secondary headings */
+        pre{
+          padding:10px;             /* Reduce code spacing */
+          font-size:.85rem;}        /* Smaller code text */
+        table{
+          display:block;            /* Enable horizontal scroll */
+          overflow-x:auto;}
+        img,
+        figure img{max-width:100%;} /* Prevent image overflow */
       }
 
       </style>
